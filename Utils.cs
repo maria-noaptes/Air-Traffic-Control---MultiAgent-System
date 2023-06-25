@@ -42,7 +42,7 @@ namespace Reactive
         public static int radarRay = 250;
         public static int airportCenterX = 10 + radarRay;
         public static int airportCenterY = 10 + radarRay;
-        public static int minimumTimeBetweenLandings = 15; // iterations
+        public static int minimumTimeBetweenLandings = 40; // iterations
 
         public static void ParseMessage(string content, out string action, out List<string> parameters)
         {
@@ -86,7 +86,7 @@ namespace Reactive
             return Math.Sqrt(Math.Pow(pos1[0] - pos2[0], 2) + Math.Pow(pos1[1] - pos2[1], 2) + Math.Pow(pos1[2] - pos2[2], 2));
         }
 
-        public static string RemoveFromEnd(this string s, string suffix)
+        public static string RemoveFromEnd(string s, string suffix)
         {
             if (s.EndsWith(suffix))
             {
@@ -95,92 +95,6 @@ namespace Reactive
 
             return s;
         }
-
-        /*
-        public static void addEdge(Dictionary<string, List<string>> adj,
-                                    string i, string j)
-        {
-            adj[i].Add(j);
-            adj[j].Add(i);
-        }
-
-        public static void shortestDistance(Dictionary<string, List<string>> adj,
-                                                string s, string dest, int v, out List<string> path)
-        {
-            path = new List<string>();
-
-            Dictionary<string, string> pred = new Dictionary<string, string>(v);
-            Dictionary<string, int> dist = new Dictionary<string, int>(v);
-            if (BFS(adj, s, dest,
-                    v, pred, dist) == false)
-            {
-                Console.WriteLine("Given source and destination are not connected");
-                return;
-            }
-
-            string exit = dest;
-            path.Add(exit);
-
-            while (pred[exit] != null)
-            {
-                path.Add(pred[exit]);
-                exit = pred[exit];
-            }
-
-            Console.WriteLine("Shortest path length is: " +
-                                dist[dest]);
-
-            Console.WriteLine("Path is ::");
-
-            for (int i = path.Count - 1;
-                    i >= 0; i--)
-            {
-                Console.Write(path[i] + ", ");
-            }
-        }
-
-        private static bool BFS(Dictionary<string, List<string>> adj,
-                                string src, string dest,
-                                int v, Dictionary<string, string> pred,
-                                Dictionary<string, int> dist)
-        {
-            List<string> queue = new List<string>();
-            Dictionary<string, bool> visited = new Dictionary<string, bool>(v);
-
-            foreach (string cell in adj.Keys)
-            {
-                visited[cell] = false;
-                dist[cell] = int.MaxValue;
-                pred[cell] = null;
-            }
-
-            visited[src] = true;
-            dist[src] = 0;
-            queue.Add(src);
-
-            while (queue.Count != 0)
-            {
-                string u = queue[0];
-                queue.RemoveAt(0);
-
-                for (int i = 0;
-                        i < adj[u].Count; i++)
-                {
-                    if (visited[adj[u][i]] == false)
-                    {
-                        visited[adj[u][i]] = true;
-                        dist[adj[u][i]] = dist[u] + 1;
-                        pred[adj[u][i]] = u;
-                        queue.Add(adj[u][i]);
-
-                        if (adj[u][i] == dest)
-                            return true;
-                    }
-                }
-            }
-            return false;
-        }*/
-
     }
 }
 

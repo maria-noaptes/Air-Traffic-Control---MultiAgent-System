@@ -10,6 +10,7 @@ using System.Diagnostics;
 using System.IO;
 using System.Data.SqlTypes;
 using System.Drawing.Drawing2D;
+using System.Xml.Linq;
 
 namespace Reactive
 {
@@ -51,7 +52,7 @@ namespace Reactive
                 case "change":
                     HandleChange(message.Sender, parameters);
                     break;
-                
+
                 default:
                     break;
             }
@@ -67,34 +68,56 @@ namespace Reactive
                 string airplane = "airplane" + index;
                 List<double> airplanePosition = AirplanesPositions[airplane].Split(' ').Select(e => Double.Parse(e)).ToList<double>();
                 distances.Add(airplane, Utils.distanceAirplaneAirport(airplanePosition, new List<double>() { 0, 0, 0 }));
-                
+
                 orderAirplanes.Add(airplane);
             }
             Console.WriteLine("distances");
             foreach (double dist in distances.Values)
             {
-                Console.Write(" " + dist);
+                Console.Write(" dist:" + dist + ", ");
             }
             Console.WriteLine();
 
             orderAirplanes = orderAirplanes.OrderBy(name => distances[name]).ToList();
-            for (int index = 0; index < orderAirplanes.Count; index++)
+
+            Console.WriteLine("order");
+            foreach (string name in orderAirplanes)
             {
-                if (index > 0)
+                Console.Write(name + ", ");
+            }
+            Console.WriteLine();
+
+            // continue adjusting speed until all airplanes are at a mimimum distance from one another
+            bool neededAdjustmentInPreviousWhile = true;
+            while (neededAdjustmentInPreviousWhile)
+            {
+                neededAdjustmentInPreviousWhile = false;
+                for (int index = orderAirplanes.Count - 2; index <= 0; index++)
                 {
-                    string airplane = "airplane" + index;
+                    string airplane = orderAirplanes[index + 1];
+                    string airplaneCloserToAirport = orderAirplanes[index];
+
                     int speed = AirplanesSpeed[airplane];
-                    double distBetweenTheseAirplanes = (distances[orderAirplanes[index - 1]] - distances[orderAirplanes[index]]);
-                    double iterationsBetweenThese = Math.Abs(distBetweenTheseAirplanes) / speed;
+                    int speedAirplaneBefore = AirplanesSpeed[airplaneCloserToAirport];
 
-                    // adjust speed of second plane to meet the minimum distance required
-                    double xSpeed = (Utils.minimumTimeBetweenLandings * speed) / iterationsBetweenThese;
 
-                    Console.WriteLine(airplane + ": speed, new speed " + speed + " " + xSpeed);
+                    double iterationsBetweenThese = Math.Abs(distances[airplane] / AirplanesSpeed[airplane] -
+                        distances[airplaneCloserToAirport] / AirplanesSpeed[airplaneCloserToAirport]);
+                    // double iterationsBetweenThese = Math.Abs(distBetweenTheseAirplanes) / speed;
+                    Console.WriteLine("iterationsBetweenThese " + iterationsBetweenThese);
+                    if (iterationsBetweenThese < Utils.minimumTimeBetweenLandings)
+                    {
 
-                    Send(airplane, Utils.Str("speed", (int)xSpeed));
-                    AirplanesSpeed[airplane] = (int)xSpeed;
-                    
+                        neededAdjustmentInPreviousWhile = true;
+                        // adjust speed of second plane to meet the minimum distance required
+                        double xSpeed = (Utils.minimumTimeBetweenLandings * speed) / iterationsBetweenThese;
+
+                        Console.WriteLine(airplane + ": speed, new speed " + speed + " " + xSpeed);
+
+                        Send(airplane, Utils.Str("speed", (int)xSpeed));
+                        AirplanesSpeed[airplane] = (int)xSpeed;
+                    }
+
                 }
             }
         }
@@ -102,7 +125,7 @@ namespace Reactive
         private void HandlePosition(string sender, string data)
         {
             int speed = Int32.Parse(data.Split(' ')[3]);
-            AirplanesPositions.Add(sender, data);
+            AirplanesPositions.Add(sender, Utils.RemoveFromEnd(data, " " + speed));
             AirplanesSpeed.Add(sender, speed);
         }
         private void HandleChange(string sender, string data)
@@ -110,14 +133,16 @@ namespace Reactive
             int speed = Int32.Parse(data.Split(' ')[3]);
             AirplanesPositions[sender] = Utils.RemoveFromEnd(data, " " + speed);
             AirplanesSpeed[sender] = speed;
+            Console.WriteLine("AirplanesPositions.Count, Utils.NoExplorers: " + AirplanesPositions.Count, Utils.NoExplorers);
 
             bool allAirplanesInfo = AirplanesPositions.Count == Utils.NoExplorers;
             if (!planComputed && allAirplanesInfo)
             {
                 planComputed = true;
+                Console.WriteLine("plan compute starts");
                 computePlan();
             }
         }
-       
+
     }
 }

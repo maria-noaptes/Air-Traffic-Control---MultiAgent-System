@@ -43,7 +43,7 @@ namespace Reactive
             switch (action)
             {
                 case "move":
-                    Thread.Sleep(1000);
+                    Thread.Sleep(10);
 
                     if (AtTheAirport())
                     {
