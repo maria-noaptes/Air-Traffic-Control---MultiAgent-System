@@ -42,7 +42,7 @@ namespace Reactive
         public static int radarRay = 250;
         public static int airportCenterX = 10 + radarRay;
         public static int airportCenterY = 10 + radarRay;
-        public static int minimumTimeBetweenLandings = 40; // iterations
+        public static int minimumTimeBetweenLandings = 50; // iterations
 
         public static void ParseMessage(string content, out string action, out List<string> parameters)
         {

@@ -18,7 +18,8 @@ namespace Reactive
     {
 
         public Dictionary<string, string> AirplanesPositions { get; set; }
-        public Dictionary<string, int> AirplanesSpeed { get; set; }
+        public Dictionary<string, double> AirplanesSpeed { get; set; }
+        public Dictionary<string, double> AirplanesNewSpeeds { get; set; }
         public bool planComputed = false;
 
         // calculates how many iterations (time) planes need before landing at their current speed
@@ -28,7 +29,8 @@ namespace Reactive
         public CoordinatorAgent()
         {
             AirplanesPositions = new Dictionary<string, string>();
-            AirplanesSpeed = new Dictionary<string, int>();
+            AirplanesSpeed = new Dictionary<string, double>();
+            AirplanesNewSpeeds = new Dictionary<string, double>();
         }
 
         public override void Setup()
@@ -72,9 +74,9 @@ namespace Reactive
                 orderAirplanes.Add(airplane);
             }
             Console.WriteLine("distances");
-            foreach (double dist in distances.Values)
+            foreach (KeyValuePair<string, double> kpv in distances)
             {
-                Console.Write(" dist:" + dist + ", ");
+                Console.WriteLine(kpv.Key + ": dist:" + kpv.Value + ", speed: " + AirplanesSpeed[kpv.Key]);
             }
             Console.WriteLine();
 
@@ -87,38 +89,58 @@ namespace Reactive
             }
             Console.WriteLine();
 
+            
             // continue adjusting speed until all airplanes are at a mimimum distance from one another
             bool neededAdjustmentInPreviousWhile = true;
+            Console.WriteLine("orderAirplanes.Count: " + orderAirplanes.Count);
+            foreach (KeyValuePair<string, double> kpv in AirplanesSpeed)
+            {
+                AirplanesNewSpeeds.Add(kpv.Key, kpv.Value);
+            }
             while (neededAdjustmentInPreviousWhile)
             {
-                neededAdjustmentInPreviousWhile = false;
-                for (int index = orderAirplanes.Count - 2; index <= 0; index++)
+                foreach (KeyValuePair<string, double> kpv in distances)
                 {
-                    string airplane = orderAirplanes[index + 1];
-                    string airplaneCloserToAirport = orderAirplanes[index];
+                    Console.WriteLine(kpv.Key + ": dist:" + kpv.Value + ", speed: " + AirplanesSpeed[kpv.Key]);
+                }
+                Console.WriteLine();
+                Thread.Sleep(1000);
+                neededAdjustmentInPreviousWhile = false;
+                for (int index = 1; index < distances.Count; index++)
+                {
+                    string airplane = orderAirplanes[index];
+                    string airplaneCloserToAirport = orderAirplanes[index-1];
 
-                    int speed = AirplanesSpeed[airplane];
-                    int speedAirplaneBefore = AirplanesSpeed[airplaneCloserToAirport];
+                    double speed = AirplanesSpeed[airplane];
+                    double speedAirplaneBefore = AirplanesSpeed[airplaneCloserToAirport];
+                    Console.WriteLine("speed " + speed + ", speedAirplaneBefore " + speedAirplaneBefore);
 
-
-                    double iterationsBetweenThese = Math.Abs(distances[airplane] / AirplanesSpeed[airplane] -
-                        distances[airplaneCloserToAirport] / AirplanesSpeed[airplaneCloserToAirport]);
+                    double iterationsBetweenThese = Math.Abs(distances[airplane] / speed -
+                        distances[airplaneCloserToAirport] / speedAirplaneBefore);
                     // double iterationsBetweenThese = Math.Abs(distBetweenTheseAirplanes) / speed;
-                    Console.WriteLine("iterationsBetweenThese " + iterationsBetweenThese);
+                    Console.WriteLine("iterationsBetweenThese, Utils.minimumTimeBetweenLandings: " + iterationsBetweenThese + ", " + Utils.minimumTimeBetweenLandings);
+                 
                     if (iterationsBetweenThese < Utils.minimumTimeBetweenLandings)
                     {
-
+                        Console.WriteLine("pair (" + airplane + ", " + airplaneCloserToAirport + ")");
                         neededAdjustmentInPreviousWhile = true;
                         // adjust speed of second plane to meet the minimum distance required
-                        double xSpeed = (Utils.minimumTimeBetweenLandings * speed) / iterationsBetweenThese;
+                        Console.WriteLine("Utils.minimumTimeBetweenLandings, speed, iterationsBetweenThese: "
+                            + Utils.minimumTimeBetweenLandings + ", " + speed + ", " + iterationsBetweenThese);
+                        double xSpeed = Math.Abs((speed * iterationsBetweenThese)/Utils.minimumTimeBetweenLandings);
 
-                        Console.WriteLine(airplane + ": speed, new speed " + speed + " " + xSpeed);
+                        Console.WriteLine(airplane + ": speed, xSpeed " + speed + " " + xSpeed);
 
-                        Send(airplane, Utils.Str("speed", (int)xSpeed));
-                        AirplanesSpeed[airplane] = (int)xSpeed;
+                        AirplanesSpeed[airplane] = xSpeed;
+                        // Send(airplane, Utils.Str("speed", (int)xSpeed));
+                        AirplanesNewSpeeds[airplane] = xSpeed;
                     }
-
                 }
+            }
+            foreach (KeyValuePair<string, double> kpv in AirplanesNewSpeeds)
+            {
+                Console.WriteLine("kpv.Value, (int)kpv.Value: " + kpv.Value + ",  " + Math.Ceiling(kpv.Value));
+                Send(kpv.Key, Utils.Str("speed", Math.Ceiling(kpv.Value)));
             }
         }
 
