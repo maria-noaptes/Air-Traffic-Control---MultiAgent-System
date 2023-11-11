@@ -11,7 +11,7 @@ namespace Reactive
 {
     public class Utils
     {
-        public static int NoExplorers = 5;
+        public static int NoExplorers = 10;
 
         private static Random rnd = new Random();
         public static Brush PickBrush()
@@ -31,10 +31,12 @@ namespace Reactive
 
         public static DateTime[] programmedLandingTimes = new DateTime[] { new DateTime(2015, 12, 31, 12, 00, 00),
             new DateTime(2015, 12, 31, 12, 04, 00), new DateTime(2015, 12, 31, 12, 10, 00), new DateTime(2015, 12, 31, 12, 18, 00),
-            new DateTime(2015, 12, 31, 11, 55, 00), new DateTime(2015, 12, 31, 11, 58, 00), new DateTime(2015, 12, 31, 11, 58, 00)  };
+            new DateTime(2015, 12, 31, 11, 55, 00), new DateTime(2015, 12, 31, 11, 58, 00), new DateTime(2015, 12, 31, 11, 58, 00), new DateTime(2015, 12, 31, 11, 58, 00),
+        new DateTime(2015, 12, 31, 11, 58, 00), new DateTime(2015, 12, 31, 11, 58, 00)};
 
         public static List<List<double>> positions = new List<List<double>> { new List<double> { 250, -120, 200 }, new List<double> { 120, -230, 300 },
-            new List<double> { 210, 240, 210 }, new List<double> { -180, 250, 200 }, new List<double> { 200, 100, 100 } };
+            new List<double> { 210, 240, 200 }, new List<double> { -100, 250, 200 }, new List<double> { 200, 130, 100 }, new List<double> { 200, 130, 100 }
+            , new List<double> { 200, 130, 100 }, new List<double> { 200, 130, 100 }, new List<double> { 200, 130, 100 }, new List<double> { 200, 130, 100 } };
 
         public static int windowWidth = 1050;
         public static int windowHeight = 600;
@@ -42,7 +44,10 @@ namespace Reactive
         public static int radarRay = 250;
         public static int airportCenterX = 10 + radarRay;
         public static int airportCenterY = 10 + radarRay;
-        public static int minimumTimeBetweenLandings = 50; // iterations
+        public static int minimumTimeBetweenLandings = 150; // iterations
+        public static int tolerance = 10;
+        public static int optimalSpeed = 5;
+        public static double separationRequired = 150;
 
         public static void ParseMessage(string content, out string action, out List<string> parameters)
         {
@@ -94,6 +99,56 @@ namespace Reactive
             }
 
             return s;
+        }
+
+        public class Point
+        {
+            // field variable
+            public double a, b, c;
+            public static Point airportPoint = new Point(0, 0, 0);
+            public Point(double a, double b, double c)
+            {
+                this.a = a;
+                this.b = b;
+                this.c = c;
+            }
+            public override string ToString() => this.a + ", " + this.b + ", " + this.c;
+            
+            public double withoutDecimals(double a)
+            {
+                return (double)(int)a;
+            }
+            public Point coordsToInt()
+            {
+                return new Point(withoutDecimals(this.a), withoutDecimals(this.b), withoutDecimals(this.c));
+            }
+            public static double distanceAirplaneAirport(Point pos1, Point pos2)
+            {
+                return Math.Sqrt(Math.Pow(pos1.a - pos2.a, 2) + Math.Pow(pos1.b - pos2.b, 2) + Math.Pow(pos1.c - pos2.c, 2));
+            }
+            public static int Compare(Point a, Point b)
+            {
+                double d1 = Point.distanceAirplaneAirport(a, Point.airportPoint);
+                double d2 = Point.distanceAirplaneAirport(b, Point.airportPoint);
+                return d1.CompareTo(d2);
+            }
+            public static Point vector(Point a, Point b)  // a and b are vectors  (https://socratic.org/questions/how-do-vectors-represent-a-point-in-space)
+            {
+                // vectors can be thought of as offsets in 3 dimensions, thus we use the same Point class
+                return new Point(b.a-a.a, b.b-a.b, b.c-a.c);
+            }
+            public static double dotProductVectors(Point a, Point b)
+            {
+                return (a.a * b.a + a.b * b.b + a.c * b.c);
+            }
+            public static double magnitudeVector(Point a)
+            {
+                return Math.Sqrt(a.a*a.a + a.b*a.b + a.c*a.c);
+            }
+            public static double getAngle(Point a, Point b) // the transformed dot product equation
+            { 
+                return Math.Acos(dotProductVectors(a, b) / (magnitudeVector(a)*magnitudeVector(b)));
+            }
         }
     }
 }

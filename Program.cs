@@ -21,9 +21,11 @@ namespace Reactive
                 env.Add(explorerAgent, "airplane" + i);
             }
 
-            Thread.Sleep(500);
+            Thread.Sleep(100);
 
             env.Start();
+
+
         }
     }
 }

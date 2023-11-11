@@ -14,11 +14,13 @@ namespace Reactive
     public class ExplorerAgent : Agent
     {
         private List<double> position; // [x, y, altitude];  (sqrt(pow(x, 2) + pow(y, 2)) = horizontal distance, 
-        private int speed;
+        private double speed;
         private List<double> speedAxis;
         private double distanceToAirport;
         private bool flyOver = false;
         private DateTime programmedLandingTime;
+        private bool startAgain = true; // after new plan
+        private int iteration = 0;
 
         public override void Setup()
         {
@@ -26,8 +28,7 @@ namespace Reactive
             programmedLandingTime = Utils.programmedLandingTimes[index];
             position = Utils.positions[index];
 
-            Console.WriteLine("Starting " + Name + ", distance to airport " + distanceToAirport);
-            UpdateDistanceAndSpeed(10);
+            UpdateDistanceAndSpeed(Utils.optimalSpeed);
 
             InformGlobalAgents("position");
         }
@@ -43,21 +44,25 @@ namespace Reactive
             switch (action)
             {
                 case "move":
-                    Thread.Sleep(10);
-
-                    if (AtTheAirport())
+                    if (startAgain)
                     {
-                        Send("planet", "landing");
-                        this.Stop();
-                    }
-                    else
-                    {
-                        MoveTowardsAirport();
-                        InformGlobalAgents("change");
+                        if (AtTheAirport())
+                        {
+                            Send("planet", "landing");
+                            Send("coordinator", "landing");
+                            this.Stop();
+                        }
+                        else
+                        {
+                            MoveTowardsAirport();
+                            InformGlobalAgents("change");
+                        }
                     }
                     break;
+                    
                 case "speed":
-                    UpdateDistanceAndSpeed(Int32.Parse(parameters[0]));
+                    UpdateDistanceAndSpeed(Double.Parse(parameters[0]));
+                    startAgain = true;
                     break;
                 case "fly-over":
                     FlyOver();
@@ -65,7 +70,6 @@ namespace Reactive
                 default:
                     break;
             }
-
         }
 
         void InformGlobalAgents(string context)
@@ -79,7 +83,7 @@ namespace Reactive
         {
             flyOver = true;
         }
-        void UpdateDistanceAndSpeed(int speed)
+        void UpdateDistanceAndSpeed(double speed)
         {
             this.speed = speed;  // units/iteration
             List<double> airportPosition = new List<double>() { 0, 0, 0 };
@@ -88,6 +92,7 @@ namespace Reactive
         }
         void MoveTowardsAirport()
         {
+            Thread.Sleep(10);
             for (int i = 0; i < position.Count; i++)
             {
                 if (position[i] > 0)
@@ -104,9 +109,7 @@ namespace Reactive
             for (int index = 0; index < position.Count; index++)
                 atAirport &= Math.Abs(position[index] - 0) <= Math.Abs(speedAxis[index]);
 
-            if (atAirport)
-                return true;
-            else return false;
+            return atAirport;
         }
     }
 }

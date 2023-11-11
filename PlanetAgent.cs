@@ -9,6 +9,7 @@ using System.Collections;
 using System.Diagnostics;
 using System.IO;
 using System.Data.SqlTypes;
+using System.Runtime.Remoting.Messaging;
 
 namespace Reactive
 {
@@ -16,12 +17,14 @@ namespace Reactive
     {
         private PlanetForm _formGui;
         private Stopwatch stopwatch = new Stopwatch();
+        private StreamWriter writer;
+        public int planComputed = 0;
+
         public Dictionary<string, string> ExplorerPositions { get; set; }
 
         public PlanetAgent()
         {
             ExplorerPositions = new Dictionary<string, string>();
-
             Thread t = new Thread(new ThreadStart(GUIThread));
             t.Start();
         }
@@ -57,14 +60,25 @@ namespace Reactive
                     HandleChange(message.Sender, parameters);
                     break;
                 case "landing":
-                    Console.WriteLine("landing " + message.Sender + " " + ExplorerPositions.Values.Count);
+                    Console.WriteLine("landing " + message.Sender + " "+ stopwatch.Elapsed);
                     ExplorerPositions.Remove(message.Sender);
-                    Console.WriteLine("landing " + message.Sender + " " +  ExplorerPositions.Values.Count);
+
+                    appendToFile("landings.txt", "landing " + message.Sender + " " + stopwatch.Elapsed);
+                    break;
+                case "plan":
+                    planComputed++;
                     break;
                 default:
                     break;
             }
             _formGui.UpdatePlanetGUI();
+        }
+
+        private void appendToFile(string file, string text)
+        {
+            writer = new StreamWriter(file, true);
+            writer.WriteLine(text);
+            writer.Close();
         }
 
         private void HandlePosition(string sender, string position)
