@@ -15,13 +15,9 @@ namespace Reactive
         public Dictionary<string, double> AirplanesSpeed { get; set; }
 
         public bool planComputed = false;
-        public int activeExplorers = Utils.NoExplorers;
+        public int activeExplorers = 0;
         public int iterations = 0;
 
-        // calculates how many iterations (time) planes need before landing at their current speed
-        // establishes an order of landing according to programmed times
-        // makes planes change speed and/or fly around
-        // minimum iterations between different landings is 5  
         public CoordinatorAgent()
         {
             AirplanesPositions = new Dictionary<string, string> { };  // { "airport", "0 0 0" }
@@ -46,6 +42,7 @@ namespace Reactive
             double speed = Double.Parse(data.Split(' ')[3]);
             AirplanesPositions.Add(sender, Utils.RemoveFromEnd(data, " " + speed));
             AirplanesSpeed.Add(sender, speed);
+            activeExplorers++;
         }
         private void HandleChange(string sender, string data)
         {
@@ -54,11 +51,9 @@ namespace Reactive
             AirplanesSpeed[sender] = speed;
 
             bool allAirplanesInfo = AirplanesPositions.Count == activeExplorers;  // explorers + airport
-            Console.WriteLine("allAirplanesInfo " + allAirplanesInfo);
             if (allAirplanesInfo)  // && !planComputed  
             {
                 iterations += 1;
-                Console.WriteLine("plan compute starts");
                 computeNewSpeeds();
                 // computePlan();
                 // planComputed = true;
@@ -88,7 +83,7 @@ namespace Reactive
             }
         }
 
-        private bool adjustSpeedForAirplane(string airplane, string airplaneCloserToAirport, Dictionary<string, double> distances,
+        /*private bool adjustSpeedForAirplane(string airplane, string airplaneCloserToAirport, Dictionary<string, double> distances,
            Dictionary<string, double> AirplanesSpeed, bool neededAdjustmentInPreviousWhile)
         {
             double speed = AirplanesSpeed[airplane];
@@ -107,7 +102,7 @@ namespace Reactive
                 AirplanesSpeed[airplane] = xSpeed;
             }
             return neededAdjustmentInPreviousWhile;
-        }
+        }*/
 
 
         private bool checkOnSameAxis(Point newPoint, Point otherPoint)
@@ -116,11 +111,11 @@ namespace Reactive
             newPoint = newPoint.coordsToInt();
             otherPoint = otherPoint.coordsToInt();
             int epsilon = 5;
-            int proportionA = (int)((newPoint.a - otherPoint.a) / (airportPoint.a - otherPoint.a));
-            int proportionB = (int)((newPoint.b - otherPoint.b) / (airportPoint.b - otherPoint.b));
-            int proportionC = (int)((newPoint.c - otherPoint.c) / (airportPoint.c - otherPoint.c));
-            bool inAxis = (Math.Abs((proportionA - proportionB)) < epsilon && Math.Abs(proportionB - proportionC) < epsilon);
-            Console.WriteLine(newPoint.ToString() + " " + otherPoint.ToString() + " inAxis " + inAxis);
+            double proportionA = (int)((newPoint.a - otherPoint.a) / (airportPoint.a - otherPoint.a));
+            double proportionB = (int)((newPoint.b - otherPoint.b) / (airportPoint.b - otherPoint.b));
+            double proportionC = (int)((newPoint.c - otherPoint.c) / (airportPoint.c - otherPoint.c));
+            
+            bool inAxis = (Math.Abs(proportionA - proportionB) < epsilon && Math.Abs(proportionB - proportionC) < epsilon);
             return inAxis;
         }
         private List<Dictionary<string, Point>> findPointsOnSameAxis(Dictionary<string, string> AirplanesPositions, Dictionary<string, double> distances)
@@ -158,59 +153,11 @@ namespace Reactive
                 dict.OrderBy(a => distances[a.Key]);
             }
 
-            foreach (var airplaneLine in airplaneLines)
-            {
-                Console.Write("line ");
-                airplaneLine.Keys.Cast<string>().ToList().ForEach(p => Console.Write(p + " "));
-                Console.WriteLine();
-            }
-
             return airplaneLines;
-        }
-
-
-
-        private void computePlan()
-        {
-            Dictionary<string, double> distances = new Dictionary<string, double>();
-            List<string> orderAirplanes = new List<string>();
-
-            foreach (var airplanePosition in AirplanesPositions)
-            {
-                string airplane = airplanePosition.Key;
-                List<double> position = AirplanesPositions[airplane].Split(' ').Select(e => Double.Parse(e)).ToList<double>();
-                distances.Add(airplane, Utils.distanceAirplaneAirport(position, new List<double>() { 0, 0, 0 }));
-
-                orderAirplanes.Add(airplane);
-                Console.WriteLine(airplane + " position: " + AirplanesPositions[airplane]);
-            }
-
-            orderAirplanes = orderAirplanes.OrderBy(name => distances[name]).ToList();
-
-            // continue adjusting speed until all airplanes are at a mimimum distance from one another
-            bool neededAdjustmentInPreviousWhile = true;
-
-            while (neededAdjustmentInPreviousWhile)
-            {
-                neededAdjustmentInPreviousWhile = false;
-                for (int index = orderAirplanes.Count - 1; index > 0; index--)
-                {
-                    string airplane = orderAirplanes[index];
-                    string airplaneCloserToAirport = orderAirplanes[index - 1];
-                    neededAdjustmentInPreviousWhile = adjustSpeedForAirplane(airplane, airplaneCloserToAirport, distances, AirplanesSpeed,
-                        neededAdjustmentInPreviousWhile);
-                }
-            }
-            foreach (KeyValuePair<string, double> kpv in AirplanesSpeed)
-            {
-                Send(kpv.Key, Utils.Str("speed", kpv.Value));
-            }
-            Send("planet", "plan");
         }
 
         private double getMinRelativeToOptimalSpeed(double optimalSpeed)
         {
-            //Console.WriteLine("optimalSpeed " + optimalSpeed);
             return optimalSpeed * ((double)80 / (double)100);
         }
         private double getMaxRelativeToOptimalSpeed(double optimalSpeed)
@@ -219,12 +166,9 @@ namespace Reactive
         }
         private double maxSpeedToKeepSeparation(double optimalSpeed, double distanceTillNextWaypoint, int currentTime, double timeArrivalPredecessor)
         {
-            //Console.WriteLine("getMinRelativeToOptimalSpeed(optimalSpeed) "+ getMinRelativeToOptimalSpeed(optimalSpeed));
             double minimumTimeRelativeToOptimalSpeed = currentTime + (distanceTillNextWaypoint - Utils.separationRequired) / getMaxRelativeToOptimalSpeed(optimalSpeed);
-            //Console.WriteLine("minimumTimeRelativeToOptimalSpeed " + minimumTimeRelativeToOptimalSpeed + ", timeArrivalPredecessor " + timeArrivalPredecessor);
             double minimumTimeArrivalAtNextWaypoint = Math.Max(minimumTimeRelativeToOptimalSpeed, timeArrivalPredecessor);
             double speedMax = (distanceTillNextWaypoint - Utils.separationRequired) / (minimumTimeArrivalAtNextWaypoint - currentTime);
-            Console.WriteLine("speedMax " + speedMax + ", distanceTillNextWaypoint " + distanceTillNextWaypoint + ", minimumTimeArrivalAtNextWaypoint " + minimumTimeArrivalAtNextWaypoint + ", currentTime " + currentTime);
             return speedMax;
         }
 
@@ -233,7 +177,6 @@ namespace Reactive
             double maximumTimeRelativeToOptimalSpeed = currentTime + (distanceTillNextWaypoint + Utils.separationRequired) / getMinRelativeToOptimalSpeed(optimalSpeed);
             double maximumTimeArrivalAtNextWaypoint = Math.Min(maximumTimeRelativeToOptimalSpeed, timeArrivalFollower);
             double speedMin = (distanceTillNextWaypoint + Utils.separationRequired) / (maximumTimeArrivalAtNextWaypoint - currentTime);
-            Console.WriteLine("speedMin " + speedMin);
             return speedMin;
         }
 
@@ -268,7 +211,7 @@ namespace Reactive
         private void adjustSpeedOnAxis(List<string> orderAirplanes, Dictionary<string, double> distances, Dictionary<string, Tuple<double, double>> acceptedIntervals)
         {
             int index = 0;
-            orderAirplanes.ForEach(p => Console.Write(p + " "));
+            //orderAirplanes.ForEach(p => Console.Write(p + " "));
 
             foreach (var airplane in orderAirplanes)
             {
@@ -300,15 +243,13 @@ namespace Reactive
                 var interval = new Tuple<double, double>(vmin, vmax);
                 acceptedIntervals.Add(airplane, interval);
 
-                // double speed = chooseSpeed(vmin, vmax);
-                // Send(airplane, Utils.Str("speed", speed));
                 index++;
             }
         }
 
         private void adjustSpeedOnWaypointNeighbours(List<string> orderAirplanes, Dictionary<string, double> distances, Dictionary<string, Tuple<double, double>> acceptedIntervals, List<Dictionary<string, Point>> airplaneLines)
         {
-            orderAirplanes.ForEach(p => Console.Write(p + " "));
+            // orderAirplanes.ForEach(p => Console.Write(p + " "));
 
             foreach (var airplane in orderAirplanes)
             {
@@ -374,8 +315,7 @@ namespace Reactive
                 if (intersection != null) acceptedIntervals[airplane] = intersection;
 
                 double speed = chooseSpeed(acceptedIntervals[airplane].Item1, acceptedIntervals[airplane].Item2);
-                Console.WriteLine("chosen speed " + speed);
-                // Send(airplane, Utils.Str("speed", speed));
+                Send(airplane, Utils.Str("speed", speed));
             }
         }
 
@@ -433,9 +373,6 @@ namespace Reactive
             // get accepted intervals for direct neighbours
             foreach (var airplaneLine in airplaneLines)
             {
-                /*Console.Write("airplane line ");
-                airplaneLine.Keys.Cast<string>().ToList().ForEach(p => Console.Write(p + " "));
-                Console.WriteLine();*/
                 adjustSpeedOnAxis(new List<string>(airplaneLine.Keys.Skip(1)), distances, acceptedIntervals);
             }
 
@@ -443,7 +380,6 @@ namespace Reactive
             // the closest waypoint neighbours for every plane are given by the next list which orders planes by distance till airport 
             List<string> waypointOrderAirplanes = orderAirplanes.OrderBy(name => distances[name]).ToList();
             adjustSpeedOnWaypointNeighbours(waypointOrderAirplanes, distances, acceptedIntervals, airplaneLines);
-
 
         }
 
@@ -457,13 +393,5 @@ namespace Reactive
             return Utils.separationRequired * (rad / Math.Sin(omega));
         }
 
-
-
     }
 }
-
-
-
-// Console.WriteLine("Utils.minimumTimeBetweenLandings, speed, iterationsBetweenThese: "
-// + Utils.minimumTimeBetweenLandings + ", " + speed + ", " + iterationsBetweenThese);
-// double xSpeed = Math.Abs((speed * iterationsBetweenThese)/Utils.minimumTimeBetweenLandings);  // Rule of Three Inverse

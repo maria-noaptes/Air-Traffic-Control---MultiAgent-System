@@ -16,17 +16,27 @@ namespace Reactive
     public class PlanetAgent : Agent
     {
         private PlanetForm _formGui;
+        private MonitoringForm _formGuiMonitoring;
         private Stopwatch stopwatch = new Stopwatch();
         private StreamWriter writer;
         public int planComputed = 0;
+        public int airplanesTillNowOnRadar = 0;
 
         public Dictionary<string, string> ExplorerPositions { get; set; }
+        public Dictionary<string, double> AirplanesSpeed { get; set; }
 
         public PlanetAgent()
         {
-            ExplorerPositions = new Dictionary<string, string>();
+            ExplorerPositions = new Dictionary<string, string> { }; 
+            AirplanesSpeed = new Dictionary<string, double> { };
+
             Thread t = new Thread(new ThreadStart(GUIThread));
             t.Start();
+            //GUIThread();
+
+            Thread t_m = new Thread(new ThreadStart(GUIThreadMonitoring));
+            t_m.Start();
+            //GUIThreadMonitoring();
         }
 
         private void GUIThread()
@@ -34,6 +44,17 @@ namespace Reactive
             _formGui = new PlanetForm();
             _formGui.SetOwner(this);
             _formGui.ShowDialog();
+
+
+            Application.Run();
+        }
+
+        private void GUIThreadMonitoring()
+        {
+            _formGuiMonitoring = new MonitoringForm();
+            _formGuiMonitoring.SetOwner(this);
+            _formGuiMonitoring.ShowDialog();
+
             Application.Run();
         }
 
@@ -60,7 +81,6 @@ namespace Reactive
                     HandleChange(message.Sender, parameters);
                     break;
                 case "landing":
-                    Console.WriteLine("landing " + message.Sender + " "+ stopwatch.Elapsed);
                     ExplorerPositions.Remove(message.Sender);
 
                     appendToFile("landings.txt", "landing " + message.Sender + " " + stopwatch.Elapsed);
@@ -71,7 +91,8 @@ namespace Reactive
                 default:
                     break;
             }
-            _formGui.UpdatePlanetGUI();
+            if (_formGui != null) _formGui.UpdatePlanetGUI();
+            if (_formGuiMonitoring != null) _formGuiMonitoring.UpdatePlanetGUI();
         }
 
         private void appendToFile(string file, string text)
@@ -83,13 +104,27 @@ namespace Reactive
 
         private void HandlePosition(string sender, string position)
         {
-            ExplorerPositions.Add(sender, position);
+            double speed = Double.Parse(position.Split(' ')[3]);
+            AirplanesSpeed.Add(sender, speed);
+
+            ExplorerPositions.Add(sender, Utils.RemoveFromEnd(position, " " + speed));
+            
+            int indexAirplane = Int32.Parse(sender.Replace("airplane", ""));
+            Send("airplane" + (indexAirplane+1), "start");
+
             Send(sender, "move");
+            airplanesTillNowOnRadar++;
+
         }
         private void HandleChange(string sender, string position)
         {
-            ExplorerPositions[sender] = position;
+            double speed = Double.Parse(position.Split(' ')[3]);
+            AirplanesSpeed[sender] = speed;
+
+            ExplorerPositions[sender] = Utils.RemoveFromEnd(position, " " + speed);
             Send(sender, "move");
         }
+
+
     }
 }
