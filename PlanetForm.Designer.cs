@@ -38,7 +38,7 @@
             this.pictureBox.Location = new System.Drawing.Point(0, 0);
             this.pictureBox.Margin = new System.Windows.Forms.Padding(2);
             this.pictureBox.Name = "pictureBox";
-            this.pictureBox.Size = new System.Drawing.Size(Utils.windowWidth, Utils.windowHeight);
+            this.pictureBox.Size = new System.Drawing.Size(1050, 600);
             this.pictureBox.TabIndex = 0;
             this.pictureBox.TabStop = false;
             this.pictureBox.Click += new System.EventHandler(this.pictureBox_Click);
@@ -49,11 +49,12 @@
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(6F, 13F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
-            this.ClientSize = new System.Drawing.Size(Utils.windowWidth, Utils.windowHeight);
+            this.ClientSize = new System.Drawing.Size(1050, 600);
             this.Controls.Add(this.pictureBox);
             this.Margin = new System.Windows.Forms.Padding(2);
             this.Name = "PlanetForm";
             this.Text = "Planet";
+            this.Load += new System.EventHandler(this.PlanetForm_Load);
             ((System.ComponentModel.ISupportInitialize)(this.pictureBox)).EndInit();
             this.ResumeLayout(false);
 

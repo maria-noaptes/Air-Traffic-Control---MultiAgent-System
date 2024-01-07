@@ -124,12 +124,12 @@ namespace Reactive
 
             List<Dictionary<string, Point>> airplaneLines = new List<Dictionary<string, Point>>();
 
-            foreach (var airplane in AirplanesPositions)
+            foreach (var airplane in AirplanesPositions.ToList())
             {
                 String[] newPointCoords = airplane.Value.Split(' ');
                 var newPoint = new Point(double.Parse(newPointCoords[0]), double.Parse(newPointCoords[1]), double.Parse(newPointCoords[2]));
                 bool added = false;
-                foreach (var dict in airplaneLines)
+                foreach (var dict in airplaneLines.ToList())
                 {
                     if (dict.Count() >= 2 && checkOnSameAxis(newPoint, dict.Skip(1).Take(1).First().Value))
                     {
@@ -148,7 +148,7 @@ namespace Reactive
                 }
             }
 
-            foreach (var dict in airplaneLines)
+            foreach (var dict in airplaneLines.ToList())
             {
                 dict.OrderBy(a => distances[a.Key]);
             }
@@ -213,7 +213,7 @@ namespace Reactive
             int index = 0;
             //orderAirplanes.ForEach(p => Console.Write(p + " "));
 
-            foreach (var airplane in orderAirplanes)
+            foreach (var airplane in orderAirplanes.ToList())
             {
                 double vmax = 0;
                 double vmin = 0;
@@ -251,7 +251,7 @@ namespace Reactive
         {
             // orderAirplanes.ForEach(p => Console.Write(p + " "));
 
-            foreach (var airplane in orderAirplanes)
+            foreach (var airplane in orderAirplanes.ToList())
             {
                 double vmax = 0;
                 double vmin = 0;
@@ -327,7 +327,7 @@ namespace Reactive
             Dictionary<string, Point> lineAirplane = airplaneLines.Where((list) => list.ContainsKey(airplane)).ToList()[0];
 
 
-            foreach (string airplanePredecessor in orderAirplanes.Take(airplaneIndex).Reverse())  // reverse cause we need to search in descending order of distances (the closest airplane to the current one)
+            foreach (string airplanePredecessor in orderAirplanes.Take(airplaneIndex).Reverse().ToList())  // reverse cause we need to search in descending order of distances (the closest airplane to the current one)
             {
                 String[] newPointCoords = AirplanesPositions[airplanePredecessor].Split(' ');
                 var newPoint = new Point(double.Parse(newPointCoords[0]), double.Parse(newPointCoords[1]), double.Parse(newPointCoords[2]));
@@ -343,7 +343,7 @@ namespace Reactive
             int airplaneIndex = orderAirplanes.IndexOf(airplane);
             Dictionary<string, Point> lineAirplane = airplaneLines.Where((list) => list.ContainsKey(airplane)).ToList()[0];
 
-            foreach (string airplaneFollower in orderAirplanes.Skip(airplaneIndex + 1))
+            foreach (string airplaneFollower in orderAirplanes.Skip(airplaneIndex + 1).ToList())
             {
                 String[] newPointCoords = AirplanesPositions[airplaneFollower].Split(' ');
                 var newPoint = new Point(double.Parse(newPointCoords[0]), double.Parse(newPointCoords[1]), double.Parse(newPointCoords[2]));
@@ -371,7 +371,7 @@ namespace Reactive
 
             Dictionary<string, Tuple<double, double>> acceptedIntervals = new Dictionary<string, Tuple<double, double>>();
             // get accepted intervals for direct neighbours
-            foreach (var airplaneLine in airplaneLines)
+            foreach (var airplaneLine in airplaneLines.ToList())
             {
                 adjustSpeedOnAxis(new List<string>(airplaneLine.Keys.Skip(1)), distances, acceptedIntervals);
             }

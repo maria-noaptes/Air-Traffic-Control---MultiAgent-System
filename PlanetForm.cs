@@ -73,7 +73,7 @@ namespace Reactive
                 Pen redPen = new Pen(Color.Red, 3);
                 g.DrawEllipse(blackPen, radarStartX, radarStartY, Utils.radarRay * 2, Utils.radarRay * 2);
                 // altitude
-                foreach (KeyValuePair<string, string> v in _ownerAgent.ExplorerPositions)
+                foreach (KeyValuePair<string, string> v in _ownerAgent.ExplorerPositions.ToList())
                 {
                     int indexAirplane = Int32.Parse(v.Key.Replace("airplane", ""));
                     List<int> pos = v.Value.Split(' ').Select(e => Convert.ToInt32((double.Parse(e)))).ToList();
@@ -93,10 +93,26 @@ namespace Reactive
             g.DrawString(speeds + " ", font, Brushes.Black, 20, h - 30);*/
             g.DrawString("Plan recomputed: " + _ownerAgent.planComputed, font, Brushes.Black, w - 200, h - 30);
             Graphics pbg = pictureBox.CreateGraphics();
-            pbg.DrawImage(_doubleBufferImage, 0, 0);
+
+            if (pictureBox.InvokeRequired)
+            {
+                pictureBox.Invoke((MethodInvoker)delegate {
+                    pbg.DrawImage(_doubleBufferImage, 0, 0);
+                });
+            }
+            else
+            {
+                pbg.DrawImage(_doubleBufferImage, 0, 0);
+            }
+
         }
 
         private void pictureBox_Click(object sender, EventArgs e)
+        {
+
+        }
+
+        private void PlanetForm_Load(object sender, EventArgs e)
         {
 
         }

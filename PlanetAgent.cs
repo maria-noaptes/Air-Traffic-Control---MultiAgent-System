@@ -107,13 +107,14 @@ namespace Reactive
             double speed = Double.Parse(position.Split(' ')[3]);
             AirplanesSpeed.Add(sender, speed);
 
+            airplanesTillNowOnRadar++;
+
             ExplorerPositions.Add(sender, Utils.RemoveFromEnd(position, " " + speed));
             
             int indexAirplane = Int32.Parse(sender.Replace("airplane", ""));
             Send("airplane" + (indexAirplane+1), "start");
 
             Send(sender, "move");
-            airplanesTillNowOnRadar++;
 
         }
         private void HandleChange(string sender, string position)
@@ -124,7 +125,5 @@ namespace Reactive
             ExplorerPositions[sender] = Utils.RemoveFromEnd(position, " " + speed);
             Send(sender, "move");
         }
-
-
     }
 }

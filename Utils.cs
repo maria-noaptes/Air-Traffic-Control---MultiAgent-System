@@ -11,7 +11,7 @@ namespace Reactive
 {
     public class Utils
     {
-        public static int NoExplorers = 10;
+        public static int NoExplorers = 3;
 
         private static Random rnd = new Random();
         public static Brush PickBrush(int airplaneIndex)
