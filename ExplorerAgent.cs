@@ -1,17 +1,12 @@
 ﻿using ActressMas;
 using System;
-using System.Collections;
 using System.Collections.Generic;
-using System.Drawing;
-using System.IO;
+using System.Configuration;
 using System.Linq;
-using System.Runtime.CompilerServices;
-using System.Runtime.Remoting.Contexts;
-using System.Security.Cryptography.X509Certificates;
-using System.Text.RegularExpressions;
 using System.Threading;
-using static Reactive.Utils;
 using Point = Reactive.Utils.Point;
+using MathNet.Numerics.Distributions;
+
 
 namespace Reactive
 {
@@ -21,20 +16,20 @@ namespace Reactive
         private double speed;
         private List<double> speedAxis;
         private double distanceToAirport;
-        // private bool flyOver = false;
-        // private DateTime programmedLandingTime;
         private bool startAgain = true; // after new plan
-        //private int iteration = 0;
-        private Random rnd = new Random();
-
-
+        String[] activateCollaboration;
+        private string airplaneIndex;
+        // int lambda = double.Parse(ConfigurationManager.AppSettings["lambda"];
+        private bool repeat = Boolean.Parse(ConfigurationManager.AppSettings["repeat"]);
+        private Poisson poisson = new Poisson(1.0 / 140 * 1000); 
         public override void Setup()
         {
             if (this.Name == "airplane0") {
                 Thread myThread = new Thread(new ThreadStart(enterRadarZone));
                 myThread.Start();
-                //enterRadarZone();
             }
+            airplaneIndex = this.Name.Replace("airplane", "");
+            activateCollaboration = ConfigurationManager.AppSettings["activateCollaboration"].Split(' ');
         }
 
         public override void Act(Message message)
@@ -50,8 +45,10 @@ namespace Reactive
                 case "start":
                     Thread myThread = new Thread(new ThreadStart(enterRadarZone));
                     myThread.Start();
-
-                    // enterRadarZone();
+                    break;
+                case "restart":
+                    Console.WriteLine("restart");
+                    Setup();
                     break;
                 case "move":
                     if (startAgain)
@@ -60,7 +57,7 @@ namespace Reactive
                         {
                             Send("planet", "landing");
                             Send("coordinator", "landing");
-                            this.Stop();
+                            if (!repeat) this.Stop();
                         }
                         else
                         {
@@ -71,12 +68,12 @@ namespace Reactive
                     break;
                     
                 case "speed":
-                    UpdateDistanceAndSpeed(Double.Parse(parameters[0]));
+                    if (activateCollaboration.Contains(airplaneIndex))
+                    {
+                        UpdateDistanceAndSpeed(Double.Parse(parameters[0]));
+                    }
                     startAgain = true;
                     break;
-                /*case "fly-over":
-                    FlyOver();
-                    break;*/
                 default:
                     break;
             }
@@ -87,8 +84,11 @@ namespace Reactive
             int delay = 0;
             if (this.Name != "airplane0")
             {
-                delay = (int)Utils.generateStartPoissonDist(1.0 / 3000);
+                Console.WriteLine("here");
+                // delay = (int)Utils.generateStartPoissonDist(1.0 / 140*1000);  // once every 140s
+                delay = poisson.Sample();
             }
+            Console.WriteLine("delay " + delay);
             Thread.Sleep(delay);
             position = Point.generateRandomAirplanePosition();
 
@@ -102,15 +102,10 @@ namespace Reactive
             Send("planet", Utils.Str(context, positionString, speed));
             Send("coordinator", Utils.Str(context, positionString, speed));
         }
-        /*
-        void FlyOver()
-        {
-            flyOver = true;
-        }*/
         void UpdateDistanceAndSpeed(double speed)
         {
             this.speed = speed;  // units/iteration
-            distanceToAirport = Point.distanceAirplaneAirport(position, new Point(0, 0, 0));
+            distanceToAirport = Point.distance(position, new Point(0, 0, 0));
             speedAxis = position.ToList().Select(x => Math.Abs((x * this.speed) / distanceToAirport)).ToList<double>();
         }
         void MoveTowardsAirport()

@@ -3,13 +3,9 @@ using Message = ActressMas.Message;
 using System;
 using System.Collections.Generic;
 using System.Threading;
-using System.Windows.Forms;
 using System.Linq;
-using System.Collections;
 using System.Diagnostics;
-using System.IO;
-using System.Data.SqlTypes;
-using System.Runtime.Remoting.Messaging;
+using System.Configuration;
 
 namespace Reactive
 {
@@ -18,25 +14,26 @@ namespace Reactive
         private PlanetForm _formGui;
         private MonitoringForm _formGuiMonitoring;
         private Stopwatch stopwatch = new Stopwatch();
-        private StreamWriter writer;
         public int planComputed = 0;
         public int airplanesTillNowOnRadar = 0;
+        public List<string> conflictsNow = new List<string>();
+        public List<string> totalConflicts = new List<string>();
+        private List<string> Landed = new List<string>();
+        private string pathToSaveLogs = ConfigurationManager.AppSettings["pathToSaveLogs"];
+        public int round = 0;
 
-        public Dictionary<string, string> ExplorerPositions { get; set; }
-        public Dictionary<string, double> AirplanesSpeed { get; set; }
+        public Dictionary<string, string> ExplorerPositions { get; set; } = new Dictionary<string, string> { }; 
+        public Dictionary<string, double> AirplanesSpeed { get; set; } = new Dictionary<string, double> { };
+
+        int airplanesAtStart = Int32.Parse(ConfigurationManager.AppSettings["noExplorers"]);
 
         public PlanetAgent()
         {
-            ExplorerPositions = new Dictionary<string, string> { }; 
-            AirplanesSpeed = new Dictionary<string, double> { };
-
             Thread t = new Thread(new ThreadStart(GUIThread));
             t.Start();
-            //GUIThread();
 
             Thread t_m = new Thread(new ThreadStart(GUIThreadMonitoring));
             t_m.Start();
-            //GUIThreadMonitoring();
         }
 
         private void GUIThread()
@@ -46,7 +43,7 @@ namespace Reactive
             _formGui.ShowDialog();
 
 
-            Application.Run();
+            System.Windows.Forms.Application.Run();
         }
 
         private void GUIThreadMonitoring()
@@ -55,12 +52,16 @@ namespace Reactive
             _formGuiMonitoring.SetOwner(this);
             _formGuiMonitoring.ShowDialog();
 
-            Application.Run();
+            System.Windows.Forms.Application.Run();
         }
 
         public override void Setup()
         {
             Console.WriteLine("Starting " + Name);
+            round++;
+            DateTime localDate = DateTime.Now;
+            Utils.appendToFile(pathToSaveLogs, "Simulation time " + localDate + "\nNoExplorers: " + Utils.NoExplorers + "\nCollaborating: " + ConfigurationManager.AppSettings["activateCollaboration"]);
+
             stopwatch.Start();
         }
 
@@ -82,8 +83,9 @@ namespace Reactive
                     break;
                 case "landing":
                     ExplorerPositions.Remove(message.Sender);
-
-                    appendToFile("landings.txt", "landing " + message.Sender + " " + stopwatch.Elapsed);
+                    Landed.Add(message.Sender);
+                    if (airplanesAtStart == Landed.Count()) // all planes landed
+                        handleSimulationEnd();
                     break;
                 case "plan":
                     planComputed++;
@@ -95,13 +97,25 @@ namespace Reactive
             if (_formGuiMonitoring != null) _formGuiMonitoring.UpdatePlanetGUI();
         }
 
-        private void appendToFile(string file, string text)
+        private void handleSimulationEnd()
         {
-            writer = new StreamWriter(file, true);
-            writer.WriteLine(text);
-            writer.Close();
-        }
+            conflictsNow.Clear();
+            totalConflicts.Clear();
+            ExplorerPositions.Clear();
+            AirplanesSpeed.Clear();
 
+            Utils.appendToFile(pathToSaveLogs, "Conflicts: " + totalConflicts.Count);
+            int noActivatedCollaboration = ConfigurationManager.AppSettings["activateCollaboration"].Split(' ').Count();
+            Utils.appendToFile(pathToSaveLogs, "Collaboration activated: " + noActivatedCollaboration + "/" + airplanesAtStart + "\n");
+
+            Setup();
+
+            foreach (string airplane in Landed)
+            {
+                Send(airplane, "restart");
+            }
+            Landed.Clear();
+        }
         private void HandlePosition(string sender, string position)
         {
             double speed = Double.Parse(position.Split(' ')[3]);
@@ -124,6 +138,40 @@ namespace Reactive
 
             ExplorerPositions[sender] = Utils.RemoveFromEnd(position, " " + speed);
             Send(sender, "move");
+
+            checkConflicts(ExplorerPositions);
         }
+        private void checkConflicts(Dictionary<string, string> AirplanesPositions)
+        {
+            // check distance between all combinations of planes currently flying
+            double nrOfCombinations = 0;
+            conflictsNow.Clear();
+            foreach (string airplane1 in AirplanesPositions.Keys)
+                foreach (string airplane2 in AirplanesPositions.Keys)
+                {
+                    if (airplane1 != airplane2 && !conflictsNow.Contains(airplane2 + " " + airplane1))
+                    {
+                        nrOfCombinations += 1;
+                        double separation = Utils.distance(AirplanesPositions[airplane1], AirplanesPositions[airplane2]);
+                        if (separation < Utils.separationRequired)
+                        {
+                            conflictsNow.Add(airplane1+ " " + airplane2);
+                        }
+                    }
+                }
+            addConflicts(totalConflicts, conflictsNow);
+        }
+        private void addConflicts(List<string> totalConflicts, List<string> toAdd)
+        {
+            foreach(string conflict in toAdd)
+            {
+                var sameConflict = string.Join(" ", conflict.Split(' ').Reverse());
+                if (!totalConflicts.Contains(conflict) && !totalConflicts.Contains(sameConflict))
+                {
+                    totalConflicts.Add(conflict);
+                }
+            }
+        }
+        
     }
 }

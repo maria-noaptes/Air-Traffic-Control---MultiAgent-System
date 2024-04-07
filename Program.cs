@@ -1,10 +1,12 @@
 ﻿using ActressMas;
+using System;
 using System.Threading;
 
 namespace Reactive
 {
     public class Program
     {
+        [STAThread]
         private static void Main(string[] args)
         {
             EnvironmentMas env = new EnvironmentMas(0, 1);

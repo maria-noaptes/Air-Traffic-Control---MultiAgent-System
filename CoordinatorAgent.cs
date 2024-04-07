@@ -4,7 +4,9 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using static Reactive.Utils;
-using System.Data.OleDb;
+using System.Diagnostics;
+using System.Windows.Forms;
+using System.Configuration;
 
 namespace Reactive
 {
@@ -51,12 +53,10 @@ namespace Reactive
             AirplanesSpeed[sender] = speed;
 
             bool allAirplanesInfo = AirplanesPositions.Count == activeExplorers;  // explorers + airport
-            if (allAirplanesInfo)  // && !planComputed  
+            if (allAirplanesInfo) 
             {
                 iterations += 1;
                 computeNewSpeeds();
-                // computePlan();
-                // planComputed = true;
             }
         }
         public override void Act(Message message)
@@ -83,34 +83,12 @@ namespace Reactive
             }
         }
 
-        /*private bool adjustSpeedForAirplane(string airplane, string airplaneCloserToAirport, Dictionary<string, double> distances,
-           Dictionary<string, double> AirplanesSpeed, bool neededAdjustmentInPreviousWhile)
-        {
-            double speed = AirplanesSpeed[airplane];
-            double speedAirplaneBefore = AirplanesSpeed[airplaneCloserToAirport];
-
-            double iterationsBetweenThese = Math.Abs(distances[airplane] / speed -
-                distances[airplaneCloserToAirport] / speedAirplaneBefore);
-
-            if (Math.Abs(iterationsBetweenThese - Utils.minimumTimeBetweenLandings) > Utils.tolerance)
-            {
-                neededAdjustmentInPreviousWhile = true;
-                // adjust speed of second plane to meet the minimum distance required
-                double xSpeed = (speedAirplaneBefore * distances[airplane]) / (Utils.minimumTimeBetweenLandings * speedAirplaneBefore
-                    + distances[airplaneCloserToAirport]);
-
-                AirplanesSpeed[airplane] = xSpeed;
-            }
-            return neededAdjustmentInPreviousWhile;
-        }*/
-
-
         private bool checkOnSameAxis(Point newPoint, Point otherPoint)
         {
             Point airportPoint = new Point(0, 0, 0);
             newPoint = newPoint.coordsToInt();
             otherPoint = otherPoint.coordsToInt();
-            int epsilon = 5;
+            int epsilon = 2; // NM
             double proportionA = (int)((newPoint.a - otherPoint.a) / (airportPoint.a - otherPoint.a));
             double proportionB = (int)((newPoint.b - otherPoint.b) / (airportPoint.b - otherPoint.b));
             double proportionC = (int)((newPoint.c - otherPoint.c) / (airportPoint.c - otherPoint.c));
@@ -118,6 +96,7 @@ namespace Reactive
             bool inAxis = (Math.Abs(proportionA - proportionB) < epsilon && Math.Abs(proportionB - proportionC) < epsilon);
             return inAxis;
         }
+
         private List<Dictionary<string, Point>> findPointsOnSameAxis(Dictionary<string, string> AirplanesPositions, Dictionary<string, double> distances)
         {
             Point airportPoint = new Point(0, 0, 0);
@@ -126,8 +105,7 @@ namespace Reactive
 
             foreach (var airplane in AirplanesPositions.ToList())
             {
-                String[] newPointCoords = airplane.Value.Split(' ');
-                var newPoint = new Point(double.Parse(newPointCoords[0]), double.Parse(newPointCoords[1]), double.Parse(newPointCoords[2]));
+                var newPoint = new Point(airplane.Value);
                 bool added = false;
                 foreach (var dict in airplaneLines.ToList())
                 {
@@ -156,27 +134,23 @@ namespace Reactive
             return airplaneLines;
         }
 
-        private double getMinRelativeToOptimalSpeed(double optimalSpeed)
+        private double maxSpeedToKeepSeparation( double distanceTillNextWaypoint, int currentTime, double timeArrivalPredecessor, double separation=0)
         {
-            return optimalSpeed * ((double)80 / (double)100);
-        }
-        private double getMaxRelativeToOptimalSpeed(double optimalSpeed)
-        {
-            return optimalSpeed * ((double)120 / (double)100);
-        }
-        private double maxSpeedToKeepSeparation(double optimalSpeed, double distanceTillNextWaypoint, int currentTime, double timeArrivalPredecessor)
-        {
-            double minimumTimeRelativeToOptimalSpeed = currentTime + (distanceTillNextWaypoint - Utils.separationRequired) / getMaxRelativeToOptimalSpeed(optimalSpeed);
+            if (separation == 0) separation = Utils.separationRequired;  // default parameter
+
+            double minimumTimeRelativeToOptimalSpeed = currentTime + (distanceTillNextWaypoint - separation) / acceptedSpeedInterval[1]; 
             double minimumTimeArrivalAtNextWaypoint = Math.Max(minimumTimeRelativeToOptimalSpeed, timeArrivalPredecessor);
-            double speedMax = (distanceTillNextWaypoint - Utils.separationRequired) / (minimumTimeArrivalAtNextWaypoint - currentTime);
+            double speedMax = (distanceTillNextWaypoint - separation) / (minimumTimeArrivalAtNextWaypoint - currentTime);
             return speedMax;
         }
 
-        private double minSpeedToKeepSeparation(double optimalSpeed, double distanceTillNextWaypoint, int currentTime, double timeArrivalFollower)
+        private double minSpeedToKeepSeparation(double distanceTillNextWaypoint, int currentTime, double timeArrivalFollower, double separation=0)
         {
-            double maximumTimeRelativeToOptimalSpeed = currentTime + (distanceTillNextWaypoint + Utils.separationRequired) / getMinRelativeToOptimalSpeed(optimalSpeed);
+            if (separation == 0) separation = Utils.separationRequired;  // default parameter
+
+            double maximumTimeRelativeToOptimalSpeed = currentTime + (distanceTillNextWaypoint + separation) / acceptedSpeedInterval[0]; 
             double maximumTimeArrivalAtNextWaypoint = Math.Min(maximumTimeRelativeToOptimalSpeed, timeArrivalFollower);
-            double speedMin = (distanceTillNextWaypoint + Utils.separationRequired) / (maximumTimeArrivalAtNextWaypoint - currentTime);
+            double speedMin = (distanceTillNextWaypoint + separation) / (maximumTimeArrivalAtNextWaypoint - currentTime);
             return speedMin;
         }
 
@@ -187,13 +161,6 @@ namespace Reactive
 
         private double chooseSpeed(double vmin, double vmax)
         {
-            /*double lowerEnd = getMinRelativeToOptimalSpeed(optimalSpeed);
-            double upperEnd = getMaxRelativeToOptimalSpeed(optimalSpeed);
-            if (vmax < Utils.optimalSpeed && vmax > lowerEnd) return vmax;
-            if (vmax < Utils.optimalSpeed && vmax < lowerEnd) return lowerEnd;
-            if (vmin > Utils.optimalSpeed && vmin < upperEnd) return vmin;
-            if (vmin > Utils.optimalSpeed && vmin > upperEnd) return upperEnd;*/
-
             if (vmax < Utils.optimalSpeed) return vmax;
             if (vmin > Utils.optimalSpeed) return vmin;
 
@@ -211,34 +178,27 @@ namespace Reactive
         private void adjustSpeedOnAxis(List<string> orderAirplanes, Dictionary<string, double> distances, Dictionary<string, Tuple<double, double>> acceptedIntervals)
         {
             int index = 0;
-            //orderAirplanes.ForEach(p => Console.Write(p + " "));
 
             foreach (var airplane in orderAirplanes.ToList())
             {
                 double vmax = 0;
                 double vmin = 0;
-
+                
                 if (index > 0)
                 {
                     string predecessor = orderAirplanes[index - 1];
-
                     double timeArrivalPredecessor = timeOfArrival(AirplanesSpeed[predecessor], distances[predecessor], iterations);
-                    vmax = maxSpeedToKeepSeparation(Utils.optimalSpeed, distances[airplane], iterations, timeArrivalPredecessor);
+                    vmax = maxSpeedToKeepSeparation(distances[airplane], iterations, timeArrivalPredecessor);
                 }
                 if (index < orderAirplanes.Count - 1)
                 {
                     string follower = orderAirplanes[index + 1];
                     double timeArrivalFollower = timeOfArrival(AirplanesSpeed[follower], distances[follower], iterations);
-                    vmin = minSpeedToKeepSeparation(Utils.optimalSpeed, distances[airplane], iterations, timeArrivalFollower);
+                    vmin = minSpeedToKeepSeparation(distances[airplane], iterations, timeArrivalFollower);
                 }
-                if (vmax == 0)
-                {
-                    if (vmin > Utils.optimalSpeed) { vmax = vmin; } else { vmax = Utils.optimalSpeed; }
-                }
-                if (vmin == 0)
-                {
-                    if (vmax < Utils.optimalSpeed) { vmin = vmax; } else { vmin = Utils.optimalSpeed; }
-                }
+                vmax = vmax == 0 ? (vmin > Utils.optimalSpeed ? vmin : Utils.optimalSpeed) : vmax;
+                vmin = vmin == 0 ? (vmax < Utils.optimalSpeed ? vmax : Utils.optimalSpeed) : vmin;
+
 
                 var interval = new Tuple<double, double>(vmin, vmax);
                 acceptedIntervals.Add(airplane, interval);
@@ -249,61 +209,40 @@ namespace Reactive
 
         private void adjustSpeedOnWaypointNeighbours(List<string> orderAirplanes, Dictionary<string, double> distances, Dictionary<string, Tuple<double, double>> acceptedIntervals, List<Dictionary<string, Point>> airplaneLines)
         {
-            // orderAirplanes.ForEach(p => Console.Write(p + " "));
-
             foreach (var airplane in orderAirplanes.ToList())
             {
-                double vmax = 0;
-                double vmin = 0;
-
-                double separation = 0;
-
+                double vmax = 0, vmin = 0;
 
                 string predecessor = getWaypointPredecessor(airplane, orderAirplanes, airplaneLines);
                 if (predecessor != null)
                 {
-                    var alfa = AirplanesSpeed[airplane] / AirplanesSpeed[predecessor];
-                    String[] pointCoords = AirplanesPositions[airplane].Split(' ');
-
-                    var currentPoint = new Point(double.Parse(pointCoords[0]), double.Parse(pointCoords[1]), double.Parse(pointCoords[2]));
-                    pointCoords = AirplanesPositions[predecessor].Split(' ');
-                    var predPoint = new Point(double.Parse(pointCoords[0]), double.Parse(pointCoords[1]), double.Parse(pointCoords[2]));
-
-                    var omega = -Point.getAngle(currentPoint, predPoint);
-
-                    separation = minSeparationWaypointNeighbours(alfa, omega);
+                    double separationW = getSeparation(airplane, predecessor);
 
                     double timeArrivalPredecessor = timeOfArrival(AirplanesSpeed[predecessor], distances[predecessor], iterations);
-                    vmax = maxSpeedToKeepSeparation(Utils.optimalSpeed, distances[airplane], iterations, timeArrivalPredecessor);
+                    vmax = maxSpeedToKeepSeparation(distances[airplane], iterations, timeArrivalPredecessor, separationW);
                 }
 
                 string follower = getWaypointFollower(airplane, orderAirplanes, airplaneLines);
-              
                 if (follower != null)
                 {
-                    var alfa = AirplanesSpeed[airplane] / AirplanesSpeed[follower];
-                    String[] pointCoords = AirplanesPositions[airplane].Split(' ');
-
-                    var currentPoint = new Point(double.Parse(pointCoords[0]), double.Parse(pointCoords[1]), double.Parse(pointCoords[2]));
-                    pointCoords = AirplanesPositions[follower].Split(' ');
-                    var predPoint = new Point(double.Parse(pointCoords[0]), double.Parse(pointCoords[1]), double.Parse(pointCoords[2]));
-
-                    var omega = Point.getAngle(currentPoint, predPoint);
-
-                    separation = minSeparationWaypointNeighbours(alfa, omega);
+                    double separationW = getSeparation(airplane, follower);
 
                     double timeArrivalFollower = timeOfArrival(AirplanesSpeed[follower], distances[follower], iterations);
-                    vmax = minSpeedToKeepSeparation(Utils.optimalSpeed, distances[airplane], iterations, timeArrivalFollower);
+                    vmax = minSpeedToKeepSeparation(distances[airplane], iterations, timeArrivalFollower, separationW);
                 }
+
                 if (vmax == 0)
                 {
-                    if (vmin > Utils.optimalSpeed) { vmax = vmin; } else { vmax = Utils.optimalSpeed; }
+                    vmax = (vmin > Utils.optimalSpeed) ? vmin : Utils.optimalSpeed;
                 }
                 if (vmin == 0)
                 {
-                    if (vmax < Utils.optimalSpeed) { vmin = vmax; } else { vmin = Utils.optimalSpeed; }
+                    vmin = (vmax < Utils.optimalSpeed) ? vmax : Utils.optimalSpeed;
                 }
+
+
                 double oldMin = acceptedIntervals[airplane].Item1;
+           
                 double oldMax = acceptedIntervals[airplane].Item2;
                 Tuple<double, double> intersection = intersectIntervals(vmin, vmax, oldMin, oldMax);
                 if (intersection != null) acceptedIntervals[airplane] = intersection;
@@ -311,14 +250,26 @@ namespace Reactive
                 // intersection with physical accepted interval
                 oldMin = acceptedIntervals[airplane].Item1;
                 oldMax = acceptedIntervals[airplane].Item2;
-                intersection = intersectIntervals(oldMin, oldMax, getMinRelativeToOptimalSpeed(Utils.optimalSpeed), getMaxRelativeToOptimalSpeed(Utils.optimalSpeed));
+                intersection = intersectIntervals(oldMin, oldMax, acceptedSpeedInterval[0], acceptedSpeedInterval[1]); 
                 if (intersection != null) acceptedIntervals[airplane] = intersection;
 
-                double speed = chooseSpeed(acceptedIntervals[airplane].Item1, acceptedIntervals[airplane].Item2);
+                double speed = chooseSpeed(oldMin, oldMax);
+
                 Send(airplane, Utils.Str("speed", speed));
             }
         }
 
+        private double getSeparation(string airplane, string target)
+        {
+            var alfa = AirplanesSpeed[airplane] / AirplanesSpeed[target];
+
+            var currentPoint = new Point(AirplanesPositions[airplane]);
+            var predPoint = new Point(AirplanesPositions[target]);
+
+            var omega = Point.getAngle(currentPoint, predPoint);
+
+            return minSeparationWaypointNeighbours(alfa, omega);
+        }
 
         private string getWaypointPredecessor(string airplane, List<string> orderAirplanes, List<Dictionary<string, Point>> airplaneLines)
         {
@@ -326,12 +277,10 @@ namespace Reactive
             int airplaneIndex = orderAirplanes.IndexOf(airplane);
             Dictionary<string, Point> lineAirplane = airplaneLines.Where((list) => list.ContainsKey(airplane)).ToList()[0];
 
-
             foreach (string airplanePredecessor in orderAirplanes.Take(airplaneIndex).Reverse().ToList())  // reverse cause we need to search in descending order of distances (the closest airplane to the current one)
             {
-                String[] newPointCoords = AirplanesPositions[airplanePredecessor].Split(' ');
-                var newPoint = new Point(double.Parse(newPointCoords[0]), double.Parse(newPointCoords[1]), double.Parse(newPointCoords[2]));
-                if (checkOnSameAxis(newPoint, lineAirplane.Skip(1).Take(1).First().Value))
+                var newPoint = new Point(AirplanesPositions[airplanePredecessor]);
+                if (!checkOnSameAxis(newPoint, lineAirplane.Skip(1).Take(1).First().Value))
                     return airplanePredecessor;
             }
             return null;
@@ -345,9 +294,8 @@ namespace Reactive
 
             foreach (string airplaneFollower in orderAirplanes.Skip(airplaneIndex + 1).ToList())
             {
-                String[] newPointCoords = AirplanesPositions[airplaneFollower].Split(' ');
-                var newPoint = new Point(double.Parse(newPointCoords[0]), double.Parse(newPointCoords[1]), double.Parse(newPointCoords[2]));
-                if (checkOnSameAxis(newPoint, lineAirplane.Skip(1).Take(1).First().Value))
+                var newPoint = new Point(AirplanesPositions[airplaneFollower]);
+                if (!checkOnSameAxis(newPoint, lineAirplane.Skip(1).Take(1).First().Value))
                     return airplaneFollower;
             }
             return null;
@@ -362,13 +310,12 @@ namespace Reactive
             {
                 string airplane = airplanePosition.Key;
                 List<double> position = AirplanesPositions[airplane].Split(' ').Select(e => Double.Parse(e)).ToList<double>();
-                distances.Add(airplane, Utils.distanceAirplaneAirport(position, new List<double>() { 0, 0, 0 }));
+                distances.Add(airplane, Utils.distance(position, new List<double>() { 0, 0, 0 }));
 
                 orderAirplanes.Add(airplane);
             }
 
             List<Dictionary<string, Point>> airplaneLines = findPointsOnSameAxis(AirplanesPositions, distances);
-
             Dictionary<string, Tuple<double, double>> acceptedIntervals = new Dictionary<string, Tuple<double, double>>();
             // get accepted intervals for direct neighbours
             foreach (var airplaneLine in airplaneLines.ToList())
@@ -378,12 +325,11 @@ namespace Reactive
 
             // get accepted interval for waypoints neighbours (in this case, all the planes are waypoint neighbours and they have the same waypoint to reach - the airport)
             // the closest waypoint neighbours for every plane are given by the next list which orders planes by distance till airport 
+
+            // TO-DO: exclude direct neighbours from waypoint neighbours
             List<string> waypointOrderAirplanes = orderAirplanes.OrderBy(name => distances[name]).ToList();
             adjustSpeedOnWaypointNeighbours(waypointOrderAirplanes, distances, acceptedIntervals, airplaneLines);
-
         }
-
-
 
         private double minSeparationWaypointNeighbours(double alfa, double omega)
         {
@@ -392,6 +338,6 @@ namespace Reactive
             double rad = Math.Sqrt(Math.Pow(alfa, 2) - 2 * alfa * Math.Cos(omega) + 1);
             return Utils.separationRequired * (rad / Math.Sin(omega));
         }
-
+   
     }
 }

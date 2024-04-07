@@ -3,9 +3,7 @@ using System;
 using System.Collections.Generic;
 using System.Data;
 using System.Drawing;
-using System.Linq;
-using System.Reflection;
-using System.Threading;
+using System.Drawing.Imaging;
 using System.Windows.Forms;
 using System.Windows.Forms.DataVisualization.Charting;
 
@@ -21,6 +19,9 @@ namespace Reactive
         private Chart chart1;
         private Label label1;
         private Button button1;
+        private Label conflicts;
+        private Label totalConflicts;
+        private Label round;
         private int iteration = 0;
 
         public MonitoringForm()
@@ -66,7 +67,6 @@ namespace Reactive
                 if (row.Cells.Count > 0 && row.Cells[0].Value != null)
                 {
                     string cellValue = row.Cells[0].Value.ToString();
-                    Console.WriteLine("cellValue " + cellValue);
                     if (cellValue.Equals(targetValue))
                     {
                         containsValue = true;
@@ -113,6 +113,11 @@ namespace Reactive
                     }
                 });
             }
+
+            // refresh conflict rate on view 
+            this.conflicts.Text = "Conflicts now: " + _ownerAgent.conflictsNow.Count; // monitorization purposes
+            this.totalConflicts.Text = "Total conflicts: " + _ownerAgent.totalConflicts.Count; // simulation purposes
+            this.round.Text = "Round: " + _ownerAgent.round;
             iteration++;
         }
 
@@ -124,6 +129,9 @@ namespace Reactive
             this.chart1 = new System.Windows.Forms.DataVisualization.Charting.Chart();
             this.label1 = new System.Windows.Forms.Label();
             this.button1 = new System.Windows.Forms.Button();
+            this.conflicts = new System.Windows.Forms.Label();
+            this.totalConflicts = new System.Windows.Forms.Label();
+            this.round = new System.Windows.Forms.Label();
             ((System.ComponentModel.ISupportInitialize)(this.dataGridView1)).BeginInit();
             ((System.ComponentModel.ISupportInitialize)(this.chart1)).BeginInit();
             this.SuspendLayout();
@@ -167,9 +175,42 @@ namespace Reactive
             this.button1.UseVisualStyleBackColor = true;
             this.button1.Click += new System.EventHandler(this.button1_Click);
             // 
+            // conflicts
+            // 
+            this.conflicts.AutoSize = true;
+            this.conflicts.Location = new System.Drawing.Point(430, 26);
+            this.conflicts.Name = "conflicts";
+            this.conflicts.Size = new System.Drawing.Size(70, 13);
+            this.conflicts.TabIndex = 3;
+            this.conflicts.Text = "Conflicts now";
+            this.conflicts.Click += new System.EventHandler(this.conflicts_Click);
+            // 
+            // totalConflicts
+            // 
+            this.totalConflicts.AutoSize = true;
+            this.totalConflicts.Location = new System.Drawing.Point(562, 26);
+            this.totalConflicts.Name = "totalConflicts";
+            this.totalConflicts.Size = new System.Drawing.Size(73, 13);
+            this.totalConflicts.TabIndex = 4;
+            this.totalConflicts.Text = "Total conflicts";
+            this.totalConflicts.Click += new System.EventHandler(this.label2_Click);
+            // 
+            // round
+            // 
+            this.round.AutoSize = true;
+            this.round.Location = new System.Drawing.Point(130, 21);
+            this.round.Name = "round";
+            this.round.Size = new System.Drawing.Size(42, 13);
+            this.round.TabIndex = 5;
+            this.round.Text = "Round ";
+            this.round.Click += new System.EventHandler(this.label2_Click_1);
+            // 
             // MonitoringForm
             // 
             this.ClientSize = new System.Drawing.Size(870, 900);
+            this.Controls.Add(this.round);
+            this.Controls.Add(this.totalConflicts);
+            this.Controls.Add(this.conflicts);
             this.Controls.Add(this.button1);
             this.Controls.Add(this.label1);
             this.Controls.Add(this.chart1);
@@ -196,8 +237,8 @@ namespace Reactive
         {
             DataRow newRow = dt.NewRow();
             newRow["Airplane"] = airplane;
-            newRow["Last Speed Recorded"] = _ownerAgent.AirplanesSpeed[airplane].ToString();
-            newRow["State"] = "Flying";
+            newRow["Last Speed Recorded"] = Math.Round(_ownerAgent.AirplanesSpeed[airplane], 2).ToString();
+            newRow["State"] = "Flying" + (_ownerAgent.conflictsNow.Contains(airplane)? " (conflict)":"");
             dt.Rows.Add(newRow);
         }
         private void changeSpeedInGridView(int i, double speed)
@@ -217,63 +258,33 @@ namespace Reactive
             this.chart1.Series[airplane].Points.AddXY(iteration, speed);
         }
 
-        /*private void btnSaveImage_Click(object sender, EventArgs e)
-        {
-            Bitmap bitmap = new Bitmap(this.Width, this.Height);
-
-            using (Graphics graphics = Graphics.FromImage(bitmap))
-            {
-                graphics.CopyFromScreen(this.Location, new Point(0, 0), this.Size);
-            }
-
-            SaveFileDialog saveFileDialog = new SaveFileDialog();
-            saveFileDialog.Filter = "Bitmap Image (*.bmp)|*.bmp|JPEG Image (*.jpg)|*.jpg|PNG Image (*.png)|*.png";
-            saveFileDialog.Title = "Save Image";
-            if (saveFileDialog.ShowDialog() == DialogResult.OK)
-            {
-                bitmap.Save(saveFileDialog.FileName);
-            }
-
-            bitmap.Dispose();
-        }*/
-
         private void button1_Click(object sender, EventArgs e)
         {
-            Thread saveImageThread = new Thread(SaveImageThreadMethod);
-            saveImageThread.Start();
+            SaveFormView();
         }
-        private void SaveImageThreadMethod()
+
+        private void SaveFormView()
         {
-            // Create a bitmap to capture the form's content
-            Bitmap bitmap = new Bitmap(this.Width, this.Height);
-            Console.WriteLine("save 1");
-            // Create a Graphics object from the bitmap
-            using (Graphics graphics = Graphics.FromImage(bitmap))
+            using (Bitmap bmp = new Bitmap(this.Width, this.Height))
             {
-                // Capture the form's content
-                graphics.CopyFromScreen(this.Location, new Point(0, 0), this.Size);
+                this.DrawToBitmap(bmp, new Rectangle(0, 0, bmp.Width, bmp.Height));
+                bmp.Save("FormScreenshot.png", ImageFormat.Png);
             }
-            Console.WriteLine("save 2");
+        }
 
+        private void label2_Click(object sender, EventArgs e)
+        {
 
-            this.BeginInvoke((MethodInvoker)delegate
-            {
-                // Show a SaveFileDialog to choose the file location and name
-                SaveFileDialog saveFileDialog = new SaveFileDialog();
-                saveFileDialog.Filter = "Bitmap Image (*.bmp)|*.bmp|JPEG Image (*.jpg)|*.jpg|PNG Image (*.png)|*.png";
-                saveFileDialog.Title = "Save Image";
+        }
 
-                Console.WriteLine("save 3");
-                if (saveFileDialog.ShowDialog() == DialogResult.OK)
-                {
-                    // Save the bitmap to the chosen file location
-                    bitmap.Save(saveFileDialog.FileName);
-                }
+        private void conflicts_Click(object sender, EventArgs e)
+        {
 
-                Console.WriteLine("save 4");
-                // Dispose of the bitmap to release resources
-                bitmap.Dispose();
-            });
+        }
+
+        private void label2_Click_1(object sender, EventArgs e)
+        {
+
         }
     }
 }

@@ -4,7 +4,6 @@ using System.Drawing;
 using System.Linq;
 using System.Windows.Forms;
 
-
 namespace Reactive
 {
     public partial class PlanetForm : Form
@@ -38,73 +37,103 @@ namespace Reactive
             DrawPlanet();
         }
 
-        Func<string, string> getAirplaneIndex = (name) =>
+        Func<string, string> getAirplaneIndex = name =>
         {
             string index = name.Replace("airplane", "");
-            index = (index.Length == 1 ? " " : "") + name.Replace("airplane", "");
-            return index;
+            return index.Length == 1 ? " " + index : index;
         };
+
         private void DrawPlanet()
         {
-            int w = pictureBox.Width;
-            int h = pictureBox.Height;
+            int width = pictureBox.Width;
+            int height = pictureBox.Height;
+            CleanupBufferImage(); 
 
-            if (_doubleBufferImage != null)
+            _doubleBufferImage = new Bitmap(width, height);
+            using (Graphics g = Graphics.FromImage(_doubleBufferImage))
             {
-                _doubleBufferImage.Dispose();
-                GC.Collect(); // prevents memory leaks
+                g.Clear(Color.White);
+                DrawRadar(g, width, height);
+                if (_ownerAgent != null) DrawAirplanes(g, width, height);
+                DrawPlanStatus(g, width, height);
             }
+            RenderToPictureBox();
+        }
 
-            _doubleBufferImage = new Bitmap(w, h);
-            Graphics g = Graphics.FromImage(_doubleBufferImage);
-            g.Clear(Color.White);
+        private void CleanupBufferImage()
+        {
+            _doubleBufferImage?.Dispose();
+            GC.Collect(); 
+        }
 
-            int minXY = Math.Min(w, h);
-            int radarStartX = 10;
-            int radarStartY = 10;
+        private void DrawRadar(Graphics g, int width, int height)
+        {
+            int radarDiameter = Utils.radarRay * 2;
+            g.FillEllipse(Brushes.Red, Utils.airportCenterX - Utils.cellSize / 4, Utils.airportCenterY - Utils.cellSize / 4, Utils.cellSize, Utils.cellSize);
+            g.DrawEllipse(new Pen(Color.Black, 3), 10, 10, radarDiameter, radarDiameter);
+        }
 
+        private void DrawAirplanes(Graphics g, int width, int height)
+        {
             Font font = new Font(FontFamily.GenericSansSerif, 12.0F, FontStyle.Bold);
+            List<string> planesInConflict = getPlanesInConflict();
 
-            if (_ownerAgent != null)
+            foreach (var position in _ownerAgent.ExplorerPositions)
             {
-                // radar
-                g.FillEllipse(Brushes.Red, Utils.airportCenterX - Utils.cellSize/4, Utils.airportCenterY - Utils.cellSize/4, Utils.cellSize, Utils.cellSize);
-                Pen blackPen = new Pen(Color.Black, 3);
-                Pen redPen = new Pen(Color.Red, 3);
-                g.DrawEllipse(blackPen, radarStartX, radarStartY, Utils.radarRay * 2, Utils.radarRay * 2);
-                // altitude
-                foreach (KeyValuePair<string, string> v in _ownerAgent.ExplorerPositions.ToList())
+                int index = Convert.ToInt32(position.Key.Replace("airplane", ""));
+                var pos = position.Value.Split(' ').Select(e => Convert.ToInt32(double.Parse(e))).ToList();
+                Brush brush = Utils.PickBrush(index);
+
+                DrawAirplaneOnRadar(g, brush, font, pos, index, planesInConflict);
+                DrawAirplaneAltitude(g, brush, font, pos, index, width, height);
+            }
+        }
+
+        private void DrawAirplaneOnRadar(Graphics g, Brush brush, Font font, List<int> pos, int index, List<string> planesInConflict)
+        {
+            g.FillRectangle(brush, Utils.airportCenterX + pos[0], Utils.airportCenterY + pos[1], Utils.cellSize / 3, Utils.cellSize / 3);
+            if (planesInConflict.Contains($"airplane{index}"))
+            {
+                g.DrawString("!", font, Brushes.Red, Utils.airportCenterX + pos[0] - Utils.cellSize / 6, Utils.airportCenterY + pos[1] - Utils.cellSize / 3);
+            }
+        }
+
+        private void DrawAirplaneAltitude(Graphics g, Brush brush, Font font, List<int> pos, int index, int width, int height)
+        {
+            g.FillRectangle(brush, width - Convert.ToInt32(0.8 * Utils.radarRay), height - pos[2] - 100, Utils.cellSize, Utils.cellSize);
+            g.DrawString(getAirplaneIndex($"airplane{index}"), font, Brushes.Black, width - Convert.ToInt32(0.8 * Utils.radarRay), height - pos[2] - 100);
+        }
+
+        private void DrawPlanStatus(Graphics g, int width, int height)
+        {
+            Font font = new Font(FontFamily.GenericSansSerif, 12.0F, FontStyle.Bold);
+            g.DrawString($"Plan recomputed: {_ownerAgent.planComputed}", font, Brushes.Black, width - 200, height - 30);
+        }
+
+        private void RenderToPictureBox()
+        {
+            using (Graphics pbg = pictureBox.CreateGraphics())
+            {
+                if (pictureBox.InvokeRequired)
                 {
-                    int indexAirplane = Int32.Parse(v.Key.Replace("airplane", ""));
-                    List<int> pos = v.Value.Split(' ').Select(e => Convert.ToInt32((double.Parse(e)))).ToList();
-
-                    // airplane on radar
-                    g.FillRectangle(Utils.PickBrush(indexAirplane), Utils.airportCenterX + pos[0], Utils.airportCenterY + pos[1], Utils.cellSize/3, Utils.cellSize/3);
-                    // g.DrawString(getAirplaneIndex(v.Key), font, Brushes.Black, Utils.airportCenterX + pos[0], Utils.airportCenterY + pos[1]);
-
-                    // airplane altitude
-                    g.FillRectangle(Utils.PickBrush(indexAirplane), w - Convert.ToInt32(0.8 * Utils.radarRay), h - pos[2]-100, Utils.cellSize, Utils.cellSize);
-                    g.DrawString(getAirplaneIndex(v.Key), font, Brushes.Black, w - Convert.ToInt32(0.8 * Utils.radarRay), h - pos[2]-100);
-                    indexAirplane++;
+                    pictureBox.Invoke((MethodInvoker)(() => pbg.DrawImage(_doubleBufferImage, 0, 0)));
+                }
+                else
+                {
+                    pbg.DrawImage(_doubleBufferImage, 0, 0);
                 }
             }
-            string speeds = "";
-            /*_ownerAgent.AirplanesSpeed.Keys.ToList().ForEach(p => speeds = speeds + (speeds.Count() > 0 ? ", " : "") + p + ": " + Math.Round(_ownerAgent.AirplanesSpeed[p], 2).ToString()) ;
-            g.DrawString(speeds + " ", font, Brushes.Black, 20, h - 30);*/
-            g.DrawString("Plan recomputed: " + _ownerAgent.planComputed, font, Brushes.Black, w - 200, h - 30);
-            Graphics pbg = pictureBox.CreateGraphics();
+        }
 
-            if (pictureBox.InvokeRequired)
-            {
-                pictureBox.Invoke((MethodInvoker)delegate {
-                    pbg.DrawImage(_doubleBufferImage, 0, 0);
-                });
-            }
-            else
-            {
-                pbg.DrawImage(_doubleBufferImage, 0, 0);
-            }
 
+        private List<string> getPlanesInConflict()
+        {
+            List<string> result = new List<string>();
+            foreach (string conflict in _ownerAgent.conflictsNow)
+            {
+                foreach (string airplane in conflict.Split(' ')) { result.Add(airplane); }
+            }
+            return result.Distinct().ToList();
         }
 
         private void pictureBox_Click(object sender, EventArgs e)
