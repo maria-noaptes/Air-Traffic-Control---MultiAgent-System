@@ -6,6 +6,7 @@ using System.Threading;
 using System.Linq;
 using System.Diagnostics;
 using System.Configuration;
+using System.Runtime;
 
 namespace Reactive
 {
@@ -19,16 +20,23 @@ namespace Reactive
         public List<string> conflictsNow = new List<string>();
         public List<string> totalConflicts = new List<string>();
         private List<string> Landed = new List<string>();
-        private string pathToSaveLogs = ConfigurationManager.AppSettings["pathToSaveLogs"];
-        public int round = 0;
+        private string pathToSaveLogs;
+        private bool repeat;
+        private int roundsMax;
+        public int round;
 
-        public Dictionary<string, string> ExplorerPositions { get; set; } = new Dictionary<string, string> { }; 
+        public Dictionary<string, string> ExplorerPositions { get; set; } = new Dictionary<string, string> { };
         public Dictionary<string, double> AirplanesSpeed { get; set; } = new Dictionary<string, double> { };
 
-        int airplanesAtStart = Int32.Parse(ConfigurationManager.AppSettings["noExplorers"]);
+        int airplanesAtStart;
 
         public PlanetAgent()
         {
+            pathToSaveLogs = Utils.config.AppSettings.Settings["pathToSaveLogs"].Value;
+            repeat = Boolean.Parse(Utils.config.AppSettings.Settings["repeat"].Value);
+            roundsMax = Int32.Parse(Utils.config.AppSettings.Settings["rounds"].Value);
+            airplanesAtStart = Int32.Parse(Utils.config.AppSettings.Settings["noExplorers"].Value);
+
             Thread t = new Thread(new ThreadStart(GUIThread));
             t.Start();
 
@@ -60,7 +68,10 @@ namespace Reactive
             Console.WriteLine("Starting " + Name);
             round++;
             DateTime localDate = DateTime.Now;
-            Utils.appendToFile(pathToSaveLogs, "Simulation time " + localDate + "\nNoExplorers: " + Utils.NoExplorers + "\nCollaborating: " + ConfigurationManager.AppSettings["activateCollaboration"]);
+            Utils.appendToFile(pathToSaveLogs, "Simulation time " + localDate + "\nNoExplorers: " + Utils.NoExplorers + "\nCollaborating: " + Utils.config.AppSettings.Settings["activateCollaboration"]);
+            
+            int noActivatedCollaboration = Utils.config.AppSettings.Settings["activateCollaboration"].Value.Split(' ').Count();
+            Utils.appendToFile(pathToSaveLogs, "Collaboration activated: " + noActivatedCollaboration + "/" + airplanesAtStart + "\n");
 
             stopwatch.Start();
         }
@@ -105,10 +116,10 @@ namespace Reactive
             AirplanesSpeed.Clear();
 
             Utils.appendToFile(pathToSaveLogs, "Conflicts: " + totalConflicts.Count);
-            int noActivatedCollaboration = ConfigurationManager.AppSettings["activateCollaboration"].Split(' ').Count();
-            Utils.appendToFile(pathToSaveLogs, "Collaboration activated: " + noActivatedCollaboration + "/" + airplanesAtStart + "\n");
 
-            Setup();
+            if (repeat && round < roundsMax)
+                // restart
+                Setup();
 
             foreach (string airplane in Landed)
             {
@@ -124,9 +135,9 @@ namespace Reactive
             airplanesTillNowOnRadar++;
 
             ExplorerPositions.Add(sender, Utils.RemoveFromEnd(position, " " + speed));
-            
+
             int indexAirplane = Int32.Parse(sender.Replace("airplane", ""));
-            Send("airplane" + (indexAirplane+1), "start");
+            Send("airplane" + (indexAirplane + 1), "start");
 
             Send(sender, "move");
 
@@ -155,7 +166,7 @@ namespace Reactive
                         double separation = Utils.distance(AirplanesPositions[airplane1], AirplanesPositions[airplane2]);
                         if (separation < Utils.separationRequired)
                         {
-                            conflictsNow.Add(airplane1+ " " + airplane2);
+                            conflictsNow.Add(airplane1 + " " + airplane2);
                         }
                     }
                 }
@@ -163,7 +174,7 @@ namespace Reactive
         }
         private void addConflicts(List<string> totalConflicts, List<string> toAdd)
         {
-            foreach(string conflict in toAdd)
+            foreach (string conflict in toAdd)
             {
                 var sameConflict = string.Join(" ", conflict.Split(' ').Reverse());
                 if (!totalConflicts.Contains(conflict) && !totalConflicts.Contains(sameConflict))
@@ -172,6 +183,6 @@ namespace Reactive
                 }
             }
         }
-        
+
     }
 }

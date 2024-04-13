@@ -1,14 +1,22 @@
 ﻿using ActressMas;
 using System;
+using System.Configuration;
 using System.Threading;
+using static Reactive.Utils;
 
 namespace Reactive
 {
     public class Program
     {
+        public static AppSettingsSection settings;
+
         [STAThread]
         private static void Main(string[] args)
         {
+            Console.WriteLine(args);
+            if (args.Length == 0) { Utils.LoadConfigBasedOnEnvironment(""); }
+            else Utils.LoadConfigBasedOnEnvironment(args[0]);
+
             EnvironmentMas env = new EnvironmentMas(0, 1);
 
             var planetAgent = new PlanetAgent();

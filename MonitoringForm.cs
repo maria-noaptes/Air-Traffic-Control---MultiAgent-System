@@ -22,6 +22,7 @@ namespace Reactive
         private Label conflicts;
         private Label totalConflicts;
         private Label round;
+        private Label config;
         private int iteration = 0;
 
         public MonitoringForm()
@@ -118,30 +119,32 @@ namespace Reactive
             this.conflicts.Text = "Conflicts now: " + _ownerAgent.conflictsNow.Count; // monitorization purposes
             this.totalConflicts.Text = "Total conflicts: " + _ownerAgent.totalConflicts.Count; // simulation purposes
             this.round.Text = "Round: " + _ownerAgent.round;
+            this.config.Text = "Config File: "+Utils.configFilePath;
             iteration++;
         }
 
         private void InitializeComponent()
         {
-            System.Windows.Forms.DataVisualization.Charting.ChartArea chartArea1 = new System.Windows.Forms.DataVisualization.Charting.ChartArea();
-            System.Windows.Forms.DataVisualization.Charting.Legend legend1 = new System.Windows.Forms.DataVisualization.Charting.Legend();
-            this.dataGridView1 = new System.Windows.Forms.DataGridView();
-            this.chart1 = new System.Windows.Forms.DataVisualization.Charting.Chart();
-            this.label1 = new System.Windows.Forms.Label();
-            this.button1 = new System.Windows.Forms.Button();
-            this.conflicts = new System.Windows.Forms.Label();
-            this.totalConflicts = new System.Windows.Forms.Label();
-            this.round = new System.Windows.Forms.Label();
+            ChartArea chartArea1 = new ChartArea();
+            Legend legend1 = new Legend();
+            this.dataGridView1 = new DataGridView();
+            this.chart1 = new Chart();
+            this.label1 = new Label();
+            this.button1 = new Button();
+            this.conflicts = new Label();
+            this.totalConflicts = new Label();
+            this.round = new Label();
+            this.config = new Label();
             ((System.ComponentModel.ISupportInitialize)(this.dataGridView1)).BeginInit();
             ((System.ComponentModel.ISupportInitialize)(this.chart1)).BeginInit();
             this.SuspendLayout();
             // 
             // dataGridView1
             // 
-            this.dataGridView1.ColumnHeadersHeightSizeMode = System.Windows.Forms.DataGridViewColumnHeadersHeightSizeMode.AutoSize;
-            this.dataGridView1.Location = new System.Drawing.Point(35, 400);
+            this.dataGridView1.ColumnHeadersHeightSizeMode = DataGridViewColumnHeadersHeightSizeMode.AutoSize;
+            this.dataGridView1.Location = new Point(35, 400);
             this.dataGridView1.Name = "dataGridView1";
-            this.dataGridView1.Size = new System.Drawing.Size(800, 450);
+            this.dataGridView1.Size = new Size(800, 450);
             this.dataGridView1.TabIndex = 0;
             // 
             // chart1
@@ -150,64 +153,74 @@ namespace Reactive
             this.chart1.ChartAreas.Add(chartArea1);
             legend1.Name = "Legend1";
             this.chart1.Legends.Add(legend1);
-            this.chart1.Location = new System.Drawing.Point(35, 51);
+            this.chart1.Location = new Point(35, 51);
             this.chart1.Name = "chart1";
-            this.chart1.Size = new System.Drawing.Size(800, 300);
+            this.chart1.Size = new Size(800, 300);
             this.chart1.TabIndex = 0;
             this.chart1.Text = "chart1";
             // 
             // label1
             // 
             this.label1.AutoSize = true;
-            this.label1.Location = new System.Drawing.Point(32, 21);
+            this.label1.Location = new Point(32, 21);
             this.label1.Name = "label1";
-            this.label1.Size = new System.Drawing.Size(81, 13);
+            this.label1.Size = new Size(81, 13);
             this.label1.TabIndex = 1;
             this.label1.Text = "Monitoring view";
             // 
             // button1
             // 
-            this.button1.Location = new System.Drawing.Point(759, 21);
+            this.button1.Location = new Point(759, 21);
             this.button1.Name = "button1";
-            this.button1.Size = new System.Drawing.Size(75, 23);
+            this.button1.Size = new Size(75, 23);
             this.button1.TabIndex = 2;
             this.button1.Text = "Save ";
             this.button1.UseVisualStyleBackColor = true;
-            this.button1.Click += new System.EventHandler(this.button1_Click);
+            this.button1.Click += new EventHandler(this.button1_Click);
             // 
             // conflicts
             // 
             this.conflicts.AutoSize = true;
-            this.conflicts.Location = new System.Drawing.Point(430, 26);
+            this.conflicts.Location = new Point(430, 26);
             this.conflicts.Name = "conflicts";
-            this.conflicts.Size = new System.Drawing.Size(70, 13);
+            this.conflicts.Size = new Size(70, 13);
             this.conflicts.TabIndex = 3;
             this.conflicts.Text = "Conflicts now";
-            this.conflicts.Click += new System.EventHandler(this.conflicts_Click);
+            this.conflicts.Click += new EventHandler(this.conflicts_Click);
             // 
             // totalConflicts
             // 
             this.totalConflicts.AutoSize = true;
-            this.totalConflicts.Location = new System.Drawing.Point(562, 26);
+            this.totalConflicts.Location = new Point(562, 26);
             this.totalConflicts.Name = "totalConflicts";
-            this.totalConflicts.Size = new System.Drawing.Size(73, 13);
+            this.totalConflicts.Size = new Size(73, 13);
             this.totalConflicts.TabIndex = 4;
             this.totalConflicts.Text = "Total conflicts";
-            this.totalConflicts.Click += new System.EventHandler(this.label2_Click);
+            this.totalConflicts.Click += new EventHandler(this.label2_Click);
             // 
             // round
             // 
             this.round.AutoSize = true;
-            this.round.Location = new System.Drawing.Point(130, 21);
+            this.round.Location = new Point(130, 21);
             this.round.Name = "round";
-            this.round.Size = new System.Drawing.Size(42, 13);
+            this.round.Size = new Size(42, 13);
             this.round.TabIndex = 5;
             this.round.Text = "Round ";
-            this.round.Click += new System.EventHandler(this.label2_Click_1);
+            this.round.Click += new EventHandler(this.label2_Click_1);
+            // 
+            // config
+            // 
+            this.config.AutoSize = true;
+            this.config.Location = new Point(32, 369);
+            this.config.Name = "config";
+            this.config.Size = new Size(56, 13);
+            this.config.TabIndex = 6;
+            this.config.Text = "Config File";
             // 
             // MonitoringForm
             // 
-            this.ClientSize = new System.Drawing.Size(870, 900);
+            this.ClientSize = new Size(870, 900);
+            this.Controls.Add(this.config);
             this.Controls.Add(this.round);
             this.Controls.Add(this.totalConflicts);
             this.Controls.Add(this.conflicts);
@@ -216,7 +229,7 @@ namespace Reactive
             this.Controls.Add(this.chart1);
             this.Controls.Add(this.dataGridView1);
             this.Name = "MonitoringForm";
-            this.Load += new System.EventHandler(this.MonitoringForm_Load);
+            this.Load += new EventHandler(this.MonitoringForm_Load);
             ((System.ComponentModel.ISupportInitialize)(this.dataGridView1)).EndInit();
             ((System.ComponentModel.ISupportInitialize)(this.chart1)).EndInit();
             this.ResumeLayout(false);

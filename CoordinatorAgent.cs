@@ -4,15 +4,10 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using static Reactive.Utils;
-using System.Diagnostics;
-using System.Windows.Forms;
-using System.Configuration;
-
 namespace Reactive
 {
     public class CoordinatorAgent : Agent
     {
-
         public Dictionary<string, string> AirplanesPositions { get; set; }
         public Dictionary<string, double> AirplanesSpeed { get; set; }
 

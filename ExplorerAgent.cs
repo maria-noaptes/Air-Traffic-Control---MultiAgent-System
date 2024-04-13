@@ -19,9 +19,11 @@ namespace Reactive
         private bool startAgain = true; // after new plan
         String[] activateCollaboration;
         private string airplaneIndex;
-        // int lambda = double.Parse(ConfigurationManager.AppSettings["lambda"];
-        private bool repeat = Boolean.Parse(ConfigurationManager.AppSettings["repeat"]);
-        private Poisson poisson = new Poisson(1.0 / 140 * 1000); 
+
+        private bool repeat = Boolean.Parse(Utils.config.AppSettings.Settings["repeat"].Value);
+        private static readonly int avgTimeNewAirplane = Int32.Parse(Utils.config.AppSettings.Settings["avgTimeToNewAirplane"].Value);
+         
+        private Poisson poisson = new Poisson(1.0 / avgTimeNewAirplane); 
         public override void Setup()
         {
             if (this.Name == "airplane0") {
@@ -29,7 +31,7 @@ namespace Reactive
                 myThread.Start();
             }
             airplaneIndex = this.Name.Replace("airplane", "");
-            activateCollaboration = ConfigurationManager.AppSettings["activateCollaboration"].Split(' ');
+            activateCollaboration = Utils.config.AppSettings.Settings["activateCollaboration"].Value.Split(' ');
         }
 
         public override void Act(Message message)
@@ -84,7 +86,6 @@ namespace Reactive
             int delay = 0;
             if (this.Name != "airplane0")
             {
-                Console.WriteLine("here");
                 // delay = (int)Utils.generateStartPoissonDist(1.0 / 140*1000);  // once every 140s
                 delay = poisson.Sample();
             }
